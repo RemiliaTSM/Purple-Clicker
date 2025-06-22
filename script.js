@@ -1,0 +1,1948 @@
+let purples = 0;
+let clickValue = 1;
+let autoClickers = 0;
+let isMuted = false;
+let totalPurplesEarned = 0;
+let totalClicks = 0;
+let totalAutoClicks = 0;
+let biggestSingleGain = 0;
+let runStartTime = Date.now();
+let hideMaxedUpgrades = false;
+let synergyClicks = 0;
+let synergyBonus = 0;
+let prestigePoints = 0;
+let totalPrestigePointsEarned = 0;
+let prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+let offlineTimeBank = 0; // in seconds
+let lastActive = Date.now();
+
+// Variables to track falling purple creation
+let lastFallingPurpleTime = 0;
+let lastPPSUpdate = 0;
+let currentPPS = 0;
+
+const scoreEl = document.getElementById('score');
+const clickerImgBtn = document.getElementById('clicker-img-btn');
+const upgradesSidebar = document.getElementById('upgrade-sidebar');
+const fallingContainer = document.getElementById('falling-container');
+const statsBtn = document.getElementById('stats-btn');
+const statsModal = document.getElementById('stats-modal');
+const closeStats = document.getElementById('close-stats');
+const statsContent = document.getElementById('stats-content');
+const showUpgradesBtn = document.getElementById('show-upgrades');
+const showBuildingsBtn = document.getElementById('show-buildings');
+const clickerImg = document.getElementById('clicker-img');
+
+// Settings menu elements
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const closeSettings = document.getElementById('close-settings');
+const muteToggle = document.getElementById('mute-toggle');
+const volumeSlider = document.getElementById('volume-slider');
+const volumeValue = document.getElementById('volume-value');
+const particleEffectsToggle = document.getElementById('particle-effects');
+const resetGameBtn = document.getElementById('reset-game-btn');
+const screamAudioToggle = document.getElementById('scream-audio-toggle');
+
+const screamAudios = [
+  new Audio('sounds/purple_scream.mp3'),
+  new Audio('sounds/purple_scream2.mp3')
+];
+const kissAudio = new Audio('sounds/purple_kiss.mp3');
+const meowAudio = new Audio('sounds/purple_meow.mp3');
+screamAudios.forEach(audio => {
+  audio.preload = 'auto';
+  audio.volume = parseFloat(volumeSlider.value);
+});
+
+const manualUpgrades = [
+  {
+    id: 'stronger_click',
+    name: 'Stronger Clicks',
+    description: '+1 Purple per click per tier',
+    baseCost: 20,
+    cost: 20,
+    tier: 0,
+    effect: () => { clickValue += 1; },
+    costGrowth: 1.5,
+    maxTier: Infinity,
+  },
+  {
+    id: 'double_tap',
+    name: 'Double Tap',
+    description: 'Doubles your current click value (single-buy)',
+    baseCost: 500,
+    cost: 500,
+    tier: 0,
+    effect: () => { clickValue *= 2; },
+    costGrowth: 1,
+    maxTier: 1,
+  },
+  {
+    id: 'purple_surge',
+    name: 'Purple Surge',
+    description: '+5% click value per tier (max 10)',
+    baseCost: 1000,
+    cost: 1000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2,
+    maxTier: 10,
+  },
+  {
+    id: 'critical_clicks',
+    name: 'Critical Clicks',
+    description: '5% chance for clicks to be worth 10x (single-buy)',
+    baseCost: 2500,
+    cost: 2500,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 1,
+    maxTier: 1,
+  },
+  {
+    id: 'purple_multiplier',
+    name: 'Purple Multiplier',
+    description: '+10% to all manual click gains per tier (max 10)',
+    baseCost: 5000,
+    cost: 5000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2.5,
+    maxTier: 10,
+  },
+  {
+    id: 'clickstorm',
+    name: 'Clickstorm',
+    description: '+2 clicks/sec for 10s after every 50 clicks (up to 5 tiers, increases duration)',
+    baseCost: 20000,
+    cost: 20000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2.5,
+    maxTier: 5,
+  },
+  {
+    id: 'golden_touch',
+    name: 'Golden Touch',
+    description: 'Every 100th click gives 100x Purples (single-buy)',
+    baseCost: 50000,
+    cost: 50000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 1,
+    maxTier: 1,
+  },
+  {
+    id: 'efficient_clicking',
+    name: 'Efficient Clicking',
+    description: 'Reduces click cooldown by 10% per tier (up to 5 tiers)',
+    baseCost: 15000,
+    cost: 15000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2,
+    maxTier: 5,
+  },
+  {
+    id: 'click_combo',
+    name: 'Click Combo',
+    description: 'Each consecutive click within 1s increases click value by 1% (up to 20% per tier)',
+    baseCost: 25000,
+    cost: 25000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2.5,
+    maxTier: 10,
+  },
+  {
+    id: 'finger_of_fate',
+    name: 'Finger of Fate',
+    description: 'Next click is guaranteed to be a critical click (single-buy)',
+    baseCost: 100000,
+    cost: 100000,
+    tier: 0,
+    effect: () => { critActive = true; },
+    costGrowth: 1,
+    maxTier: 1,
+  },
+  {
+    id: 'click_magnet',
+    name: 'Click Magnet',
+    description: '+1% chance per tier for double Purples per click (up to 10 tiers)',
+    baseCost: 30000,
+    cost: 30000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2,
+    maxTier: 10,
+  },
+  {
+    id: 'purple_avalanche',
+    name: 'Purple Avalanche',
+    description: 'For 30s, every click drops 5 extra falling purples (single-buy)',
+    baseCost: 200000,
+    cost: 200000,
+    tier: 0,
+    effect: () => { purpleAvalancheActive = Date.now() + 30000; },
+    costGrowth: 1,
+    maxTier: 1,
+  },
+  {
+    id: 'auto_click_synergy',
+    name: 'Auto-Click Synergy',
+    description: 'For every 10 manual clicks, gain +1 auto-click per second per tier (permanent, stacks with other auto-clickers)',
+    baseCost: 40000,
+    cost: 40000,
+    tier: 0,
+    effect: () => {},
+    costGrowth: 2.5,
+    maxTier: 10,
+  },
+  // Add more manual upgrades here
+];
+
+const buildings = [
+  {
+    id: 'auto_clicker',
+    name: 'Auto Clicker',
+    description: '+1 Purple per second per tier',
+    baseCost: 50,
+    cost: 50,
+    tier: 0,
+    pps: 1,
+    costGrowth: 1.5,
+  },
+  {
+    id: 'purple_farm',
+    name: 'Purple Farm',
+    description: '+10 Purples per second per tier',
+    baseCost: 1000,
+    cost: 1000,
+    tier: 0,
+    pps: 10,
+    costGrowth: 1.6,
+  },
+  {
+    id: 'purple_factory',
+    name: 'Purple Factory',
+    description: '+100 Purples per second per tier',
+    baseCost: 20000,
+    cost: 20000,
+    tier: 0,
+    pps: 100,
+    costGrowth: 1.7,
+  },
+  {
+    id: 'purple_mine',
+    name: 'Purple Mine',
+    description: '+1,000 Purples per second per tier',
+    baseCost: 500000,
+    cost: 500000,
+    tier: 0,
+    pps: 1000,
+    costGrowth: 1.8,
+  },
+  {
+    id: 'purple_lab',
+    name: 'Purple Lab',
+    description: '+10,000 Purples per second per tier',
+    baseCost: 10000000,
+    cost: 10000000,
+    tier: 0,
+    pps: 10000,
+    costGrowth: 2.0,
+  },
+  {
+    id: 'purple_portal',
+    name: 'Purple Portal',
+    description: '+100,000 Purples per second per tier',
+    baseCost: 250000000,
+    cost: 250000000,
+    tier: 0,
+    pps: 100000,
+    costGrowth: 2.2,
+  },
+  {
+    id: 'galactic_purpler',
+    name: 'Galactic Purpler',
+    description: '+1,000,000 Purples per second per tier',
+    baseCost: 5000000000,
+    cost: 5000000000,
+    tier: 0,
+    pps: 1000000,
+    costGrowth: 2.5,
+  },
+];
+
+const achievements = [
+  { id: 'first_click', name: 'First Click', desc: 'Earn your first Purple.', unlocked: false },
+  { id: 'first_1000', name: 'First 1000', desc: 'Hit 1,000 Purples for the first time in a run.', unlocked: false },
+  { id: 'first_million', name: 'First Million', desc: 'Hit 1,000,000 Purples for the first time.', unlocked: false },
+  { id: 'world_domination', name: 'World Domination', desc: 'Hit 8,000,000,000 Purples.', unlocked: false },
+  { id: 'click_frenzy', name: 'Click Frenzy', desc: 'Click 100 times in 10 seconds.', unlocked: false },
+  { id: 'auto_empire', name: 'Auto Empire', desc: 'Own 100 total buildings.', unlocked: false },
+  { id: 'upgrade_collector', name: 'Upgrade Collector', desc: 'Reach Tier 10 in any upgrade.', unlocked: false },
+  { id: 'farm_tycoon', name: 'Farm Tycoon', desc: 'Own 10 Purple Farms.', unlocked: false },
+  { id: 'factory_owner', name: 'Factory Owner', desc: 'Own 5 Purple Factories.', unlocked: false },
+  { id: 'mining_magnate', name: 'Mining Magnate', desc: 'Own 3 Purple Mines.', unlocked: false },
+  { id: 'lab_rat', name: 'Lab Rat', desc: 'Own 2 Purple Labs.', unlocked: false },
+  { id: 'portal_master', name: 'Portal Master', desc: 'Own a Purple Portal.', unlocked: false },
+  { id: 'galactic_overlord', name: 'Galactic Overlord', desc: 'Own a Galactic Purpler.', unlocked: false },
+  { id: 'purple_rain', name: 'Purple Rain', desc: 'Earn 10,000 Purples in a single second.', unlocked: false },
+  { id: 'manual_master', name: 'Manual Master', desc: 'Earn 10,000 Purples by clicking (not automation).', unlocked: false },
+  // ... more achievements as needed ...
+];
+
+// Add new arrays for offline upgrades and buildings
+const offlineUpgrades = [
+  {
+    id: 'offline_booster',
+    name: 'Offline Booster',
+    description: 'Increases offline time accumulation rate by +2s/sec per tier',
+    baseCost: 1000,
+    cost: 1000,
+    tier: 0,
+    costGrowth: 2,
+    maxTier: 10,
+    effect: () => {},
+  },
+  {
+    id: 'time_capsule',
+    name: 'Time Capsule',
+    description: 'Increases offline time bank cap by +1 hour per tier',
+    baseCost: 5000,
+    cost: 5000,
+    tier: 0,
+    costGrowth: 2.5,
+    maxTier: 12,
+    effect: () => {},
+  },
+  {
+    id: 'efficient_automation',
+    name: 'Efficient Automation',
+    description: 'Increases effectiveness of offline PPS by 25% (single-buy)',
+    baseCost: 20000,
+    cost: 20000,
+    tier: 0,
+    costGrowth: 1,
+    maxTier: 1,
+    effect: () => {},
+  },
+  {
+    id: 'offline_synergy',
+    name: 'Offline Synergy',
+    description: 'Each tier increases synergy bonus included in offline gains',
+    baseCost: 10000,
+    cost: 10000,
+    tier: 0,
+    costGrowth: 2,
+    maxTier: 10,
+    effect: () => {},
+  },
+  {
+    id: 'offline_magnet',
+    name: 'Offline Magnet',
+    description: 'Increases percentage of PPS counted for offline gains by 10% per tier',
+    baseCost: 15000,
+    cost: 15000,
+    tier: 0,
+    costGrowth: 2,
+    maxTier: 10,
+    effect: () => {},
+  },
+];
+
+const offlineBuildings = [
+  {
+    id: 'sleep_lab',
+    name: 'Sleep Lab',
+    description: 'Increases effectiveness of all offline gains by 10% per tier',
+    baseCost: 25000,
+    cost: 25000,
+    tier: 0,
+    costGrowth: 2.5,
+    maxTier: 20,
+  },
+  {
+    id: 'chrono_vault',
+    name: 'Chrono Vault',
+    description: 'Each tier increases offline time cap by 1 hour and gives a one-time offline gain boost',
+    baseCost: 100000,
+    cost: 100000,
+    tier: 0,
+    costGrowth: 3,
+    maxTier: 12,
+  },
+];
+
+let sidebarPage = 'upgrades';
+const showOfflineBtn = document.getElementById('show-offline');
+const offlineUpgradeSidebar = document.getElementById('offline-upgrade-sidebar');
+
+showOfflineBtn.addEventListener('click', () => {
+  sidebarPage = 'offline';
+  showOfflineBtn.classList.add('active');
+  showUpgradesBtn.classList.remove('active');
+  showBuildingsBtn.classList.remove('active');
+  renderSidebar();
+});
+
+// Prestige Tech Tree (branching, dependencies, multi-level nodes)
+const techTree = [
+  // Manual Click Branch
+  {
+    id: 'click_power',
+    name: 'Click Power',
+    desc: '+10% manual click value per level',
+    cost: 1,
+    unlocked: false,
+    maxLevel: 5,
+    level: 0,
+    deps: [],
+    effect: () => {},
+  },
+  {
+    id: 'critical_mastery',
+    name: 'Critical Mastery',
+    desc: '+2% crit chance per level',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 3,
+    level: 0,
+    deps: ['click_power-2'], // Requires Click Power level 2
+    effect: () => {},
+  },
+  {
+    id: 'combo_chain',
+    name: 'Combo Chain',
+    desc: 'Click combos last 0.2s longer',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['critical_mastery'],
+    effect: () => {},
+  },
+  {
+    id: 'golden_touch',
+    name: 'Golden Touch',
+    desc: 'Every 50th click is a guaranteed crit',
+    cost: 3,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['combo_chain'],
+    effect: () => {},
+  },
+  // Automation Branch
+  {
+    id: 'auto_efficiency',
+    name: 'Auto Efficiency',
+    desc: '+10% PPS per level',
+    cost: 1,
+    unlocked: false,
+    maxLevel: 5,
+    level: 0,
+    deps: [],
+    effect: () => {},
+  },
+  {
+    id: 'synergy_engine',
+    name: 'Synergy Engine',
+    desc: 'Manual clicks boost PPS for 5s',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['auto_efficiency-2'], // Requires Auto Efficiency level 2
+    effect: () => {},
+  },
+  {
+    id: 'factory_overdrive',
+    name: 'Factory Overdrive',
+    desc: 'Factories produce 2x for 30s every 10 min',
+    cost: 3,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['synergy_engine'],
+    effect: () => {},
+  },
+  // Offline Branch
+  {
+    id: 'offline_booster',
+    name: 'Offline Booster',
+    desc: '+20% offline gains per level',
+    cost: 1,
+    unlocked: false,
+    maxLevel: 5,
+    level: 0,
+    deps: [],
+    effect: () => {},
+  },
+  {
+    id: 'time_capsule',
+    name: 'Time Capsule',
+    desc: '+1h offline cap per level',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 3,
+    level: 0,
+    deps: ['offline_booster-2'], // Requires Offline Booster level 2
+    effect: () => {},
+  },
+  {
+    id: 'dream_clicks',
+    name: 'Dream Clicks',
+    desc: '10% of manual click upgrades count for offline',
+    cost: 3,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['time_capsule'],
+    effect: () => {},
+  },
+  // Meta/Global Branch
+  {
+    id: 'prestige_multiplier',
+    name: 'Prestige Multiplier',
+    desc: '+5% all gains per level',
+    cost: 3,
+    unlocked: false,
+    maxLevel: 10,
+    level: 0,
+    deps: [],
+    effect: () => {},
+  },
+  {
+    id: 'cheaper_upgrades',
+    name: 'Cheaper Upgrades',
+    desc: '-2% upgrade costs per level',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 5,
+    level: 0,
+    deps: ['prestige_multiplier-2'], // Requires Prestige Multiplier level 2
+    effect: () => {},
+  },
+  {
+    id: 'faster_progress',
+    name: 'Faster Progress',
+    desc: 'Buildings and upgrades unlock 10% sooner',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['cheaper_upgrades'],
+    effect: () => {},
+  },
+  // Special/Unique Techs
+  {
+    id: 'quantum_leap',
+    name: 'Quantum Leap',
+    desc: 'Instantly gain 1h offline gains',
+    cost: 5,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['offline_booster', 'time_capsule'], // Deep in offline branch
+    effect: () => {},
+  },
+  {
+    id: 'purple_storm',
+    name: 'Purple Storm',
+    desc: '1% chance per click for a 10x burst',
+    cost: 4,
+    unlocked: false,
+    maxLevel: 1,
+    level: 0,
+    deps: ['combo_chain', 'factory_overdrive'], // Requires both click and automation branches
+    effect: () => {},
+  },
+  {
+    id: 'cosmetic_unlocks',
+    name: 'Cosmetic Unlocks',
+    desc: 'New themes, backgrounds, or effects',
+    cost: 2,
+    unlocked: false,
+    maxLevel: 3,
+    level: 0,
+    deps: ['prestige_multiplier'],
+    effect: () => {},
+  },
+];
+
+// Global settings defaults
+window.animationSpeed = 1;
+window.fallingPurpleLimit = 200;
+window.floatingTextEnabled = true;
+window.screenShakeEnabled = true;
+window.screamAudioEnabled = true;
+
+function saveGame() {
+  const save = {
+    purples,
+    clickValue,
+    totalPurplesEarned,
+    totalClicks,
+    totalAutoClicks,
+    biggestSingleGain,
+    runStartTime,
+    manualUpgrades: manualUpgrades.map(u => ({ tier: u.tier, cost: u.cost })),
+    buildings: buildings.map(b => ({ tier: b.tier, cost: b.cost })),
+    isMuted,
+    hideMaxedUpgrades,
+    synergyClicks,
+    synergyBonus,
+    prestigePoints,
+    totalPrestigePointsEarned,
+    offlineTimeBank,
+    lastActive,
+    techTree: techTree.map(t => ({ level: t.level, unlocked: t.unlocked })),
+    achievements,
+    particleEffectsEnabled: window.particleEffectsEnabled,
+    volume: parseFloat(volumeSlider.value),
+    animationSpeed: window.animationSpeed,
+    fallingPurpleLimit: window.fallingPurpleLimit,
+    floatingTextEnabled: window.floatingTextEnabled,
+    screenShakeEnabled: window.screenShakeEnabled,
+    screamAudioEnabled: window.screamAudioEnabled
+  };
+  localStorage.setItem('purpleClickerSave', JSON.stringify(save));
+}
+
+function loadGame() {
+  const save = JSON.parse(localStorage.getItem('purpleClickerSave'));
+  if (save) {
+    purples = save.purples ?? 0;
+    clickValue = save.clickValue ?? 1;
+    totalPurplesEarned = save.totalPurplesEarned ?? 0;
+    totalClicks = save.totalClicks ?? 0;
+    totalAutoClicks = save.totalAutoClicks ?? 0;
+    biggestSingleGain = save.biggestSingleGain ?? 0;
+    runStartTime = save.runStartTime ?? Date.now();
+    if (save.manualUpgrades) {
+      save.manualUpgrades.forEach((saved, i) => {
+        manualUpgrades[i].tier = saved.tier;
+        manualUpgrades[i].cost = saved.cost;
+      });
+    }
+    if (save.buildings) {
+      save.buildings.forEach((saved, i) => {
+        buildings[i].tier = saved.tier;
+        buildings[i].cost = saved.cost;
+      });
+    }
+    isMuted = save.isMuted ?? false;
+    hideMaxedUpgrades = save.hideMaxedUpgrades ?? false;
+    synergyClicks = save.synergyClicks ?? 0;
+    synergyBonus = save.synergyBonus ?? 0;
+    prestigePoints = save.prestigePoints ?? 0;
+    totalPrestigePointsEarned = save.totalPrestigePointsEarned ?? 0;
+    // Update prestige milestone after loading
+    prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+    if (save.techTree && Array.isArray(save.techTree)) {
+      save.techTree.forEach((saved, i) => {
+        techTree[i].level = saved.level;
+        techTree[i].unlocked = saved.unlocked;
+      });
+    }
+    if (save.achievements) {
+      save.achievements.forEach((saved, i) => {
+        achievements[i].unlocked = saved.unlocked;
+      });
+    }
+    offlineTimeBank = save.offlineTimeBank ?? 0;
+    lastActive = save.lastActive ?? Date.now();
+    
+    // Load settings
+    window.particleEffectsEnabled = save.particleEffectsEnabled ?? true;
+    const savedVolume = save.volume ?? 1;
+    
+    // Initialize settings UI
+    muteToggle.checked = isMuted;
+    volumeSlider.value = savedVolume;
+    volumeValue.textContent = Math.round(savedVolume * 100) + '%';
+    particleEffectsToggle.checked = window.particleEffectsEnabled;
+    
+    // Apply volume to audio
+    screamAudios.forEach(audio => {
+      audio.volume = savedVolume;
+    });
+    
+    // Apply offline gains
+    const now = Date.now();
+    const realSecondsAway = Math.max(0, Math.floor((now - lastActive) / 1000));
+    const timeDiff = Math.min(realSecondsAway, offlineTimeBank);
+    if (timeDiff > 0) {
+      const pps = getPPS();
+      const offlineGains = Math.floor(pps * timeDiff);
+      purples += offlineGains;
+      totalPurplesEarned += offlineGains;
+      offlineTimeBank -= timeDiff;
+    }
+    lastActive = now;
+    window.animationSpeed = save.animationSpeed ?? 1;
+    window.fallingPurpleLimit = save.fallingPurpleLimit ?? 200;
+    window.floatingTextEnabled = save.floatingTextEnabled ?? true;
+    window.screenShakeEnabled = save.screenShakeEnabled ?? true;
+    window.screamAudioEnabled = save.screamAudioEnabled ?? true;
+    saveGame();
+    if (statsModal && statsModal.style.display === 'block') renderStats();
+  }
+}
+
+function updateScore() {
+  const ppc = getManualClickValue();
+  const pps = getPPS();
+  scoreEl.innerHTML = `Purples: ${purples}<br><span style='font-size:0.8em;font-weight:normal;'>Per Click: <b>${ppc}</b><br>Per Second: <b>${pps}</b></span><br><span style='font-size:0.8em;color:#ffe066;'>Prestige Points: <b>${prestigePoints}</b></span>`;
+  checkPrestigeAvailability();
+  checkTechTreeAvailability();
+}
+
+function updateSidebarTabPurchasable() {
+  // Upgrades
+  const canBuyUpgrade = manualUpgrades.some(u => {
+    if (hideMaxedUpgrades && u.maxTier && u.tier >= u.maxTier) return false;
+    return purples >= u.cost && (!u.maxTier || u.tier < u.maxTier);
+  });
+  if (canBuyUpgrade) {
+    showUpgradesBtn.classList.add('purchasable');
+  } else {
+    showUpgradesBtn.classList.remove('purchasable');
+  }
+  // Buildings
+  const canBuyBuilding = buildings.some(b => purples >= b.cost);
+  if (canBuyBuilding) {
+    showBuildingsBtn.classList.add('purchasable');
+  } else {
+    showBuildingsBtn.classList.remove('purchasable');
+  }
+  // Offline upgrades and buildings
+  const canBuyOfflineUpgrade = offlineUpgrades.some(u => purples >= u.cost && (!u.maxTier || u.tier < u.maxTier));
+  const canBuyOfflineBuilding = offlineBuildings.some(b => purples >= b.cost && (!b.maxTier || b.tier < b.maxTier));
+  if (canBuyOfflineUpgrade || canBuyOfflineBuilding) {
+    showOfflineBtn.classList.add('purchasable');
+  } else {
+    showOfflineBtn.classList.remove('purchasable');
+  }
+}
+
+function renderSidebar() {
+  upgradesSidebar.style.display = (sidebarPage === 'upgrades' || sidebarPage === 'buildings') ? 'flex' : 'none';
+  upgradesSidebar.innerHTML = '';
+  offlineUpgradeSidebar.style.display = (sidebarPage === 'offline') ? 'flex' : 'none';
+  offlineUpgradeSidebar.innerHTML = '';
+  if (sidebarPage === 'upgrades') {
+    // Add hide maxed toggle
+    upgradesSidebar.innerHTML += `<label style='display:block;margin-bottom:10px;text-align:center;'><input type='checkbox' id='hide-maxed-upgrades' ${hideMaxedUpgrades ? 'checked' : ''}/> Hide maxed upgrades</label>`;
+    const hideToggle = setTimeout(() => {
+      document.getElementById('hide-maxed-upgrades').addEventListener('change', (e) => {
+        hideMaxedUpgrades = e.target.checked;
+        renderSidebar();
+      });
+    }, 0);
+    upgradesSidebar.innerHTML += '<h3 style="color:#c77dff;text-align:center;margin-bottom:18px;">Upgrades</h3>';
+    manualUpgrades.forEach((upgrade) => {
+      // Hide maxed upgrades if toggle is on
+      if (hideMaxedUpgrades && upgrade.maxTier && upgrade.tier >= upgrade.maxTier) return;
+      const btn = document.createElement('button');
+      btn.className = 'upgrade-btn';
+      btn.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
+      btn.innerHTML = `
+        <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
+        <div style="font-size:0.95em;">${upgrade.description}</div>
+        <div style="margin-top:4px;">Cost: ${upgrade.cost} Purples</div>
+      `;
+      btn.onclick = () => {
+        if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
+          purples -= upgrade.cost;
+          upgrade.tier++;
+          upgrade.effect();
+          upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
+          // Create upgrade particles
+          createUpgradeParticles(btn);
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          updateScore();
+          renderSidebar();
+          saveGame();
+        }
+      };
+      upgradesSidebar.appendChild(btn);
+    });
+  } else if (sidebarPage === 'buildings') {
+    upgradesSidebar.innerHTML = '<h3 style="color:#c77dff;text-align:center;margin-bottom:18px;">Buildings</h3>';
+    buildings.forEach((building) => {
+      const btn = document.createElement('button');
+      btn.className = 'upgrade-btn';
+      btn.disabled = (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
+      btn.innerHTML = `
+        <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
+        <div style="font-size:0.95em;">${building.description}</div>
+        <div style="margin-top:4px;">Cost: ${building.cost} Purples</div>
+      `;
+      btn.onclick = () => {
+        if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
+          purples -= building.cost;
+          building.tier++;
+          building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
+          // Create upgrade particles
+          createUpgradeParticles(btn);
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          updateScore();
+          renderSidebar();
+          saveGame();
+        }
+      };
+      upgradesSidebar.appendChild(btn);
+    });
+  } else if (sidebarPage === 'offline') {
+    offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin-bottom:18px;">Offline Upgrades</h3>';
+    offlineUpgrades.forEach((upgrade) => {
+      const btn = document.createElement('button');
+      btn.className = 'upgrade-btn';
+      btn.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
+      btn.innerHTML = `
+        <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
+        <div style="font-size:0.95em;">${upgrade.description}</div>
+        <div style="margin-top:4px;">Cost: ${upgrade.cost} Purples</div>
+      `;
+      btn.onclick = () => {
+        if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
+          purples -= upgrade.cost;
+          upgrade.tier++;
+          if (typeof upgrade.effect === 'function') upgrade.effect();
+          upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
+          // Create upgrade particles
+          createUpgradeParticles(btn);
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          updateScore();
+          renderSidebar();
+          saveGame();
+        }
+      };
+      offlineUpgradeSidebar.appendChild(btn);
+    });
+    offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin:24px 0 12px 0;">Offline Buildings</h3>';
+    offlineBuildings.forEach((building) => {
+      const btn = document.createElement('button');
+      btn.className = 'upgrade-btn';
+      btn.disabled = (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
+      btn.innerHTML = `
+        <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
+        <div style="font-size:0.95em;">${building.description}</div>
+        <div style="margin-top:4px;">Cost: ${building.cost} Purples</div>
+      `;
+      btn.onclick = () => {
+        if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
+          purples -= building.cost;
+          building.tier++;
+          building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
+          // Create upgrade particles
+          createUpgradeParticles(btn);
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          updateScore();
+          renderSidebar();
+          saveGame();
+        }
+      };
+      offlineUpgradeSidebar.appendChild(btn);
+    });
+  }
+  updateSidebarTabPurchasable();
+}
+
+function createFallingPurple() {
+  const img = document.createElement('img');
+  img.src = 'purple.png';
+  img.className = 'falling-purple';
+
+  // Initial position and velocity
+  const PURPLE_SIZE = 72;
+  const containerWidth = window.innerWidth;
+  let x = Math.random() * (containerWidth - PURPLE_SIZE); // ensures image is fully inside
+  let y = -PURPLE_SIZE;
+  let vx = (Math.random() - 0.5) * 6; // random horizontal velocity
+  let vy = Math.random() * 2 + 2; // initial downward velocity
+  const gravity = 0.35;
+  const bounce = 0.6;
+  const friction = 0.98;
+  
+  // Rotation variables
+  let rotation = Math.random() * 360; // random initial rotation
+  let rotationSpeed = (Math.random() - 0.5) * 720; // random rotation speed (-360 to +360 degrees per second)
+  let wobble = Math.random() * 20; // random wobble amount
+  let wobbleSpeed = Math.random() * 4 + 2; // random wobble speed
+
+  img.style.left = `${x}px`;
+  img.style.top = `${y}px`;
+  fallingContainer.appendChild(img);
+
+  let startTime = null;
+  let lastTimestamp = null;
+  function animate(timestamp) {
+    if (!startTime) startTime = timestamp;
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const elapsed = (timestamp - startTime) / 1000; // seconds
+    const deltaTime = (timestamp - lastTimestamp) / 1000; // time since last frame
+    lastTimestamp = timestamp;
+
+    vy += gravity;
+    x += vx;
+    y += vy;
+    
+    // Update rotation and wobble
+    rotation += rotationSpeed * deltaTime;
+    const wobbleOffset = Math.sin(elapsed * wobbleSpeed) * wobble;
+
+    // Bounce off floor
+    if (y + PURPLE_SIZE > window.innerHeight) {
+      y = window.innerHeight - PURPLE_SIZE;
+      vy *= -bounce;
+      vx *= friction;
+      if (Math.abs(vy) < 1) vy = 0;
+      // Add some rotation change on bounce
+      rotationSpeed *= 0.8;
+      wobble *= 0.7;
+    }
+    // Bounce off walls
+    if (x < 0) {
+      x = 0;
+      vx *= -bounce;
+      rotationSpeed *= 0.9;
+    } else if (x + PURPLE_SIZE > window.innerWidth) {
+      x = window.innerWidth - PURPLE_SIZE;
+      vx *= -bounce;
+      rotationSpeed *= 0.9;
+    }
+
+    // Apply transform with rotation and wobble
+    img.style.transform = `translate(${x}px, ${y + wobbleOffset}px) rotate(${rotation}deg)`;
+
+    // Remove if out of bounds for a while or after 5 seconds
+    if (elapsed > 5 || y > window.innerHeight + 100) {
+      img.remove();
+    } else {
+      requestAnimationFrame(animate);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function formatTime(ms) {
+  const sec = Math.floor(ms / 1000) % 60;
+  const min = Math.floor(ms / 60000) % 60;
+  const hr = Math.floor(ms / 3600000);
+  return `${hr}h ${min}m ${sec}s`;
+}
+
+function getPPS() {
+  let pps = 0;
+  buildings.forEach(b => {
+    pps += b.tier * b.pps;
+  });
+  pps += synergyBonus;
+  return pps;
+}
+
+function renderStats() {
+  const now = Date.now();
+  const runDuration = now - runStartTime;
+  const pps = getPPS();
+  const ppc = clickValue;
+  const upgradesOwned = manualUpgrades.map(u => `${u.name}: Tier ${u.tier}`).join('<br>');
+  const buildingsOwned = buildings.map(b => `${b.name}: Tier ${b.tier}`).join('<br>');
+  const manualVsAuto = totalPurplesEarned === 0 ? 'N/A' : `${Math.round((totalClicks * ppc) / totalPurplesEarned * 100)}% manual / ${Math.round((totalAutoClicks) / totalPurplesEarned * 100)}% auto`;
+  const offlineHours = Math.floor(offlineTimeBank / 3600);
+  const offlineMinutes = Math.floor((offlineTimeBank % 3600) / 60);
+  const offlineSeconds = offlineTimeBank % 60;
+  statsContent.innerHTML = `
+    <b>Current Purples:</b> ${purples}<br>
+    <b>Total Purples Earned:</b> ${totalPurplesEarned}<br>
+    <b>Purples Per Second (PPS):</b> ${pps}<br>
+    <b>Purples Per Click (PPC):</b> ${ppc}<br>
+    <b>Total Clicks:</b> ${totalClicks}<br>
+    <b>Total Auto Clicks:</b> ${totalAutoClicks}<br>
+    <b>Run Duration:</b> ${formatTime(runDuration)}<br>
+    <b>Current Prestige Points:</b> ${prestigePoints}<br>
+    <b>Total Prestige Points Earned:</b> ${totalPrestigePointsEarned}<br>
+    <b>Upgrades Owned:</b><br>${upgradesOwned}<br>
+    <b>Buildings Owned:</b><br>${buildingsOwned}<br>
+    <b>Biggest Single Gain:</b> ${biggestSingleGain}<br>
+    <b>Manual vs. Auto Ratio:</b> ${manualVsAuto}<br>
+    <b>Session Start Time:</b> ${new Date(runStartTime).toLocaleString()}<br>
+    <b>Offline Time Bank:</b> ${offlineHours}h ${offlineMinutes}m ${offlineSeconds}s (max 12h)
+  `;
+  statsContent.innerHTML += `<br><h3 style='margin-top:24px;color:#ffe066;'>Achievements</h3>`;
+  statsContent.innerHTML += `<ul style='list-style:none;padding:0;'>` +
+    achievements.map(a => `<li style='margin-bottom:8px;${a.unlocked ? "color:#ffe066;" : "color:#888;"}'>
+      ${a.unlocked ? '✔️' : '⬜'} <b>${a.name}</b>: ${a.desc}
+    </li>`).join('') + '</ul>';
+}
+
+statsBtn.addEventListener('click', () => {
+  renderStats();
+  statsModal.style.display = 'block';
+});
+closeStats.addEventListener('click', () => {
+  statsModal.style.display = 'none';
+});
+window.addEventListener('click', (e) => {
+  if (e.target === statsModal) statsModal.style.display = 'none';
+});
+
+function showAchievementPopup(achievement) {
+  // Create confetti particles for achievement
+  createAchievementParticles();
+  
+  // Create popup element
+  const popup = document.createElement('div');
+  popup.style.position = 'fixed';
+  popup.style.bottom = '50px';
+  popup.style.left = '50%';
+  popup.style.transform = 'translateX(-50%)';
+  popup.style.background = 'linear-gradient(135deg, #3e0060, #5a189a)';
+  popup.style.color = '#ffe066';
+  popup.style.padding = '16px 24px';
+  popup.style.borderRadius = '12px';
+  popup.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+  popup.style.zIndex = '1000';
+  popup.style.fontSize = '1.1em';
+  popup.style.fontWeight = 'bold';
+  popup.style.textAlign = 'center';
+  popup.style.minWidth = '300px';
+  popup.style.opacity = '0';
+  popup.style.transition = 'opacity 0.5s ease-in-out';
+  
+  popup.innerHTML = `
+    <div style="margin-bottom: 8px;">🏆 Achievement Unlocked!</div>
+    <div style="font-size: 1.2em; margin-bottom: 8px;">${achievement.name}</div>
+    <div style="font-size: 0.9em; font-weight: normal; opacity: 0.9;">${achievement.desc}</div>
+  `;
+  
+  document.body.appendChild(popup);
+  
+  // Fade in
+  setTimeout(() => {
+    popup.style.opacity = '1';
+  }, 100);
+  
+  // Fade out and remove after 5 seconds
+  setTimeout(() => {
+    popup.style.opacity = '0';
+    setTimeout(() => {
+      if (popup.parentNode) {
+        popup.parentNode.removeChild(popup);
+      }
+    }, 500);
+  }, 5000);
+
+  if (!isMuted && kissAudio) {
+    kissAudio.currentTime = 0;
+    kissAudio.play();
+  }
+}
+
+function checkAchievements() {
+  // First Click
+  if (!achievements[0].unlocked && totalClicks > 0) {
+    achievements[0].unlocked = true;
+    showAchievementPopup(achievements[0]);
+  }
+  // First 1000
+  if (!achievements[1].unlocked && purples >= 1000) {
+    achievements[1].unlocked = true;
+    showAchievementPopup(achievements[1]);
+  }
+  // First Million
+  if (!achievements[2].unlocked && purples >= 1000000) {
+    achievements[2].unlocked = true;
+    showAchievementPopup(achievements[2]);
+  }
+  // World Domination
+  if (!achievements[3].unlocked && purples >= 8000000000) {
+    achievements[3].unlocked = true;
+    showAchievementPopup(achievements[3]);
+  }
+  // Click Frenzy (100 clicks in 10 seconds)
+  if (!achievements[4].unlocked) {
+    if (!window._clickTimestamps) window._clickTimestamps = [];
+    window._clickTimestamps.push(Date.now());
+    window._clickTimestamps = window._clickTimestamps.filter(ts => Date.now() - ts <= 10000);
+    if (window._clickTimestamps.length >= 100) {
+      achievements[4].unlocked = true;
+      showAchievementPopup(achievements[4]);
+    }
+  }
+  // Auto Empire (100 total buildings)
+  if (!achievements[5].unlocked && buildings.reduce((a, b) => a + b.tier, 0) >= 100) {
+    achievements[5].unlocked = true;
+    showAchievementPopup(achievements[5]);
+  }
+  // Upgrade Collector (Tier 10 in any upgrade)
+  if (!achievements[6].unlocked && manualUpgrades.some(u => u.tier >= 10)) {
+    achievements[6].unlocked = true;
+    showAchievementPopup(achievements[6]);
+  }
+  // Farm Tycoon (10 Purple Farms)
+  if (!achievements[7].unlocked && buildings.find(b => b.id === 'purple_farm')?.tier >= 10) {
+    achievements[7].unlocked = true;
+    showAchievementPopup(achievements[7]);
+  }
+  // Factory Owner (5 Purple Factories)
+  if (!achievements[8].unlocked && buildings.find(b => b.id === 'purple_factory')?.tier >= 5) {
+    achievements[8].unlocked = true;
+    showAchievementPopup(achievements[8]);
+  }
+  // Mining Magnate (3 Purple Mines)
+  if (!achievements[9].unlocked && buildings.find(b => b.id === 'purple_mine')?.tier >= 3) {
+    achievements[9].unlocked = true;
+    showAchievementPopup(achievements[9]);
+  }
+  // Lab Rat (2 Purple Labs)
+  if (!achievements[10].unlocked && buildings.find(b => b.id === 'purple_lab')?.tier >= 2) {
+    achievements[10].unlocked = true;
+    showAchievementPopup(achievements[10]);
+  }
+  // Portal Master (1 Purple Portal)
+  if (!achievements[11].unlocked && buildings.find(b => b.id === 'purple_portal')?.tier >= 1) {
+    achievements[11].unlocked = true;
+    showAchievementPopup(achievements[11]);
+  }
+  // Galactic Overlord (1 Galactic Purpler)
+  if (!achievements[12].unlocked && buildings.find(b => b.id === 'galactic_purpler')?.tier >= 1) {
+    achievements[12].unlocked = true;
+    showAchievementPopup(achievements[12]);
+  }
+  // Purple Rain (10,000 in a second)
+  if (!achievements[13].unlocked) {
+    if (!window._lastSecondPurples) window._lastSecondPurples = [];
+    window._lastSecondPurples.push({ t: Date.now(), v: purples });
+    window._lastSecondPurples = window._lastSecondPurples.filter(e => Date.now() - e.t <= 1000);
+    if (window._lastSecondPurples.length > 1) {
+      const gain = window._lastSecondPurples[window._lastSecondPurples.length-1].v - window._lastSecondPurples[0].v;
+      if (gain >= 10000) {
+        achievements[13].unlocked = true;
+        showAchievementPopup(achievements[13]);
+      }
+    }
+  }
+}
+
+let clickComboCount = 0;
+let lastClickTime = 0;
+let purpleAvalancheActive = 0;
+
+function getManualClickValue() {
+  let value = 1;
+  value += manualUpgrades[0].tier; // Stronger Clicks
+  if (manualUpgrades[1].tier > 0) value *= 2; // Double Tap
+  value *= 1 + 0.05 * manualUpgrades[2].tier; // Purple Surge
+  value *= 1 + 0.10 * manualUpgrades[4].tier; // Purple Multiplier
+  // Click Combo
+  if (manualUpgrades[8].tier > 0 && clickComboCount > 0) {
+    let comboBonus = Math.min(clickComboCount, 20 * manualUpgrades[8].tier);
+    value *= 1 + 0.01 * comboBonus;
+  }
+  // Click Magnet
+  if (manualUpgrades[10].tier > 0 && Math.random() < 0.01 * manualUpgrades[10].tier) {
+    value *= 2;
+  }
+  return Math.floor(value);
+}
+
+let critActive = false;
+
+function showFloatingPlus(x, y, value) {
+  if (!window.floatingTextEnabled) return;
+  
+  const plus = document.createElement('div');
+  plus.className = 'floating-plus';
+  plus.textContent = `+${value}`;
+  plus.style.left = `${x}px`;
+  plus.style.top = `${y}px`;
+  document.body.appendChild(plus);
+  setTimeout(() => plus.remove(), 1000);
+}
+
+// Click cooldown system
+const BASE_CLICK_COOLDOWN = 100; // ms
+let lastManualClickTime = 0;
+function getClickCooldown() {
+  const tier = manualUpgrades[7].tier; // Efficient Clicking is the 8th upgrade (index 7)
+  let cooldown = BASE_CLICK_COOLDOWN * (1 - 0.10 * tier);
+  return Math.max(20, cooldown); // Minimum 20ms
+}
+
+clickerImg.addEventListener('click', (e) => {
+  let now = Date.now();
+  // Click cooldown logic
+  const cooldown = getClickCooldown();
+  if (now - lastManualClickTime < cooldown) {
+    // Optional: Visual feedback for too-fast click
+    clickerImg.classList.add('cooldown');
+    setTimeout(() => clickerImg.classList.remove('cooldown'), 80);
+    return;
+  }
+  lastManualClickTime = now;
+  // Click Combo logic
+  if (manualUpgrades[8].tier > 0 && now - lastClickTime < 1000) {
+    clickComboCount++;
+  } else {
+    clickComboCount = 0;
+  }
+  lastClickTime = now;
+
+  let value = getManualClickValue();
+  // Critical Clicks: 5% chance for 10x if purchased
+  if (manualUpgrades[3].tier > 0 && (critActive || Math.random() < 0.05)) {
+    value *= 10;
+    critActive = false;
+  }
+  // Golden Touch: Every 100th click gives 100x
+  if (manualUpgrades[6].tier > 0 && totalClicks > 0 && totalClicks % 100 === 0) {
+    value *= 100;
+  }
+  purples += value;
+  totalPurplesEarned += value;
+  totalClicks++;
+  if (value > biggestSingleGain) biggestSingleGain = value;
+  updateScore();
+  renderSidebar();
+  createFallingPurple();
+  // Purple Avalanche: extra falling purples
+  if (manualUpgrades[12].tier > 0 && purpleAvalancheActive > Date.now()) {
+    for (let i = 0; i < 5; i++) if (i < 1000) createFallingPurple();
+  }
+  // Create click particles from button center
+  const rect = clickerImg.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  createClickParticles(centerX, centerY, value);
+  // Floating +X effect
+  const clickX = e.clientX;
+  const clickY = e.clientY;
+  showFloatingPlus(clickX, clickY, value);
+  checkAchievements();
+  if (!isMuted && window.screamAudioEnabled) {
+    const audio = (Math.random() < 0.01) ? screamAudios[1] : screamAudios[0];
+    audio.currentTime = 0;
+    audio.play();
+  }
+  saveGame();
+  updateSidebarTabPurchasable();
+  synergyClicks++;
+  const synergyUpgrade = manualUpgrades.find(u => u.id === 'auto_click_synergy');
+  if (synergyUpgrade && synergyUpgrade.tier > 0 && synergyClicks >= 10) {
+    synergyBonus += synergyUpgrade.tier;
+    synergyClicks = 0;
+  }
+});
+
+setInterval(() => {
+  const pps = getPPS();
+  if (pps > 0) {
+    purples += pps;
+    totalPurplesEarned += pps;
+    totalAutoClicks += pps;
+    if (pps > biggestSingleGain) biggestSingleGain = pps;
+    updateScore();
+    renderSidebar();
+    // Update current PPS for falling purple distribution
+    currentPPS = pps;
+    lastPPSUpdate = Date.now();
+    // Create PPS particles occasionally
+    if (Math.random() < 0.1) { // 10% chance per second
+      createPPSParticles();
+    }
+    checkAchievements();
+    saveGame();
+    updateSidebarTabPurchasable();
+  }
+  // Offline time bank logic
+  offlineTimeBank = Math.min(offlineTimeBank + 10, 43200); // 12 hours max
+  saveGame();
+}, 1000);
+
+// Create falling purples gradually over time
+setInterval(() => {
+  const now = Date.now();
+  
+  // Only create falling purples if we have a valid PPS rate
+  if (currentPPS > 0 && now - lastPPSUpdate < 2000) { // Allow 2 second grace period
+    const timeSinceLastPurple = now - lastFallingPurpleTime;
+    
+    // Calculate the target interval between falling purples
+    // For example, if PPS is 10, we want one purple every 100ms
+    const targetInterval = 1000 / Math.min(currentPPS, 300); // Cap at 300 PPS for performance
+    
+    // Check if enough time has passed to create a new falling purple
+    if (timeSinceLastPurple >= targetInterval) {
+      createFallingPurple();
+      lastFallingPurpleTime = now;
+    }
+  }
+}, 16); // Run at ~60fps for smooth animation
+
+window.addEventListener('beforeunload', saveGame);
+
+showUpgradesBtn.addEventListener('click', () => {
+  sidebarPage = 'upgrades';
+  showUpgradesBtn.classList.add('active');
+  showBuildingsBtn.classList.remove('active');
+  renderSidebar();
+});
+showBuildingsBtn.addEventListener('click', () => {
+  sidebarPage = 'buildings';
+  showBuildingsBtn.classList.add('active');
+  showUpgradesBtn.classList.remove('active');
+  showOfflineBtn.classList.remove('active');
+  renderSidebar();
+});
+
+loadGame();
+updateScore();
+renderSidebar();
+updateSidebarTabPurchasable();
+
+function showPrestigeButton() {
+  let btn = document.getElementById('prestige-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'prestige-btn';
+    btn.style.position = 'fixed';
+    btn.style.top = '80px';
+    btn.style.right = '50%';
+    btn.style.transform = 'translateX(50%)';
+    btn.style.zIndex = 200;
+    btn.style.background = '#ffe066';
+    btn.style.color = '#3e0060';
+    btn.style.fontWeight = 'bold';
+    btn.style.fontSize = '1.2em';
+    btn.style.padding = '16px 32px';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '12px';
+    btn.style.boxShadow = '0 2px 8px #0005';
+    btn.onclick = () => {
+      if (confirm('Are you sure you want to prestige? This will reset all progress except Prestige Points and unlocked techs!')) {
+        // Calculate how many milestones have been passed
+        let milestonesPassed = 0;
+        let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+        let tempPurples = purples;
+        while (tempPurples >= milestone) {
+          milestonesPassed++;
+          milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + milestonesPassed);
+        }
+        if (milestonesPassed > 0) {
+          totalPrestigePointsEarned += milestonesPassed;
+          prestigePoints += milestonesPassed;
+        }
+        // Update prestige milestone for next prestige
+        prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+        // Reset all progress except prestigePoints
+        purples = 0;
+        clickValue = 1;
+        totalPurplesEarned = 0;
+        totalClicks = 0;
+        totalAutoClicks = 0;
+        biggestSingleGain = 0;
+        runStartTime = Date.now();
+        synergyClicks = 0;
+        synergyBonus = 0;
+        manualUpgrades.forEach(u => { u.tier = 0; u.cost = u.baseCost; });
+        buildings.forEach(b => { b.tier = 0; b.cost = b.baseCost; });
+        // TODO: Reset tech tree except unlocked techs
+        saveGame();
+        location.reload();
+      }
+    };
+    document.body.appendChild(btn);
+  }
+  // Calculate how many prestige points would be earned if prestiging now
+  let pointsEarned = 0;
+  let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+  let tempPurples = purples;
+  while (tempPurples >= milestone) {
+    pointsEarned++;
+    milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + pointsEarned);
+  }
+  btn.textContent = `Prestige! (+${pointsEarned} Prestige Point${pointsEarned !== 1 ? 's' : ''}, Next at ${milestone.toLocaleString()} Purples)`;
+  btn.style.display = 'block';
+}
+
+function hidePrestigeButton() {
+  const btn = document.getElementById('prestige-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+// Show/hide prestige button based on milestone
+function checkPrestigeAvailability() {
+  if (purples >= prestigeMilestone) {
+    showPrestigeButton();
+  } else {
+    hidePrestigeButton();
+  }
+}
+
+// Tech Tree UI logic
+function showTechTreeButton() {
+  let btn = document.getElementById('tech-tree-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'tech-tree-btn';
+    btn.title = 'Prestige Tech Tree';
+    btn.textContent = '🌳';
+    btn.style.fontSize = '1.6em';
+    btn.onclick = () => {
+      document.getElementById('tech-tree-modal').style.display = 'block';
+      setTimeout(renderTechTree, 0);
+    };
+    document.body.appendChild(btn);
+  }
+  btn.classList.add('visible');
+}
+function hideTechTreeButton() {
+  const btn = document.getElementById('tech-tree-btn');
+  if (btn) btn.classList.remove('visible');
+}
+
+// Show tech tree button if you have any prestige points
+function checkTechTreeAvailability() {
+  showTechTreeButton();
+}
+
+// Render tech tree modal
+function renderTechTree() {
+  const content = document.getElementById('tech-tree-content');
+  content.innerHTML = `<div style='margin-bottom:12px;font-size:1.1em; width:100%; text-align:center;'>Prestige Points: <b>${prestigePoints}</b> (Total Earned: ${totalPrestigePointsEarned})</div>`;
+  // Get branch columns
+  const colManual = document.getElementById('tech-tree-col-manual');
+  const colAuto = document.getElementById('tech-tree-col-auto');
+  const colOffline = document.getElementById('tech-tree-col-offline');
+  const colMeta = document.getElementById('tech-tree-col-meta');
+  // Clear columns
+  [colManual, colAuto, colOffline, colMeta].forEach(col => { if (col) col.innerHTML = ''; });
+  // Clear SVG lines
+  let svg = document.getElementById('tech-tree-svg');
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'tech-tree-svg';
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '1';
+    content.appendChild(svg);
+  }
+  svg.innerHTML = '';
+
+  // Branch assignment
+  const branchMap = {
+    // Manual Click Branch
+    click_power: colManual,
+    critical_mastery: colManual,
+    combo_chain: colManual,
+    golden_touch: colManual,
+    // Automation Branch
+    auto_efficiency: colAuto,
+    synergy_engine: colAuto,
+    factory_overdrive: colAuto,
+    // Offline Branch
+    offline_booster: colOffline,
+    time_capsule: colOffline,
+    dream_clicks: colOffline,
+    // Meta/Global Branch
+    prestige_multiplier: colMeta,
+    cheaper_upgrades: colMeta,
+    faster_progress: colMeta,
+    // Special/Unique (assign to closest relevant branch)
+    quantum_leap: colOffline,
+    purple_storm: colAuto,
+    cosmetic_unlocks: colMeta,
+  };
+
+  // Render nodes into columns
+  techTree.forEach((tech) => {
+    // Check if dependencies are met
+    const depsMet = tech.deps.every(depId => {
+      if (depId.includes('-')) {
+        const [baseId, lvl] = depId.split('-');
+        const dep = techTree.find(t => t.id === baseId);
+        return dep && dep.level >= parseInt(lvl);
+      } else {
+        const dep = techTree.find(t => t.id === depId);
+        return dep && (dep.unlocked || dep.level > 0);
+      }
+    });
+    const canBuy = prestigePoints >= tech.cost && depsMet && tech.level < tech.maxLevel;
+    const unlocked = tech.level > 0;
+    const node = document.createElement('div');
+    node.className = 'tech-node' + (unlocked ? ' unlocked' : (!canBuy ? ' locked' : ''));
+    node.id = 'tech-node-' + tech.id;
+    node.style.margin = '32px 0';
+    node.innerHTML = `<div style='font-weight:bold;font-size:1.1em;'>${tech.name}</div>
+      <div class='desc'>${tech.desc}</div>
+      <div class='cost'>Cost: ${tech.cost} PP</div>
+      <div class='level'>Level: ${tech.level}/${tech.maxLevel}</div>
+      ${tech.deps.length ? `<div class='requirements'>Requires: ${tech.deps.map(d => {
+        if (d.includes('-')) {
+          const [baseId, lvl] = d.split('-');
+          return `${techTree.find(t => t.id === baseId)?.name} (${lvl})`;
+        } else {
+          return techTree.find(t => t.id === d)?.name;
+        }
+      }).join(', ')}</div>` : ''}`;
+    if (canBuy) {
+      node.onclick = () => {
+        if (prestigePoints >= tech.cost && tech.level < tech.maxLevel) {
+          prestigePoints -= tech.cost;
+          tech.level++;
+          tech.unlocked = true;
+          // TODO: Apply tech effect
+          saveGame();
+          renderTechTree();
+          updateScore();
+        }
+      };
+    }
+    // Place node in correct column
+    const col = branchMap[tech.id];
+    if (col) {
+      col.appendChild(node);
+      console.log('Appended node', tech.id, 'to column', col.id);
+    } else {
+      content.appendChild(node);
+      console.warn('No column for tech node', tech.id, '- appended to content');
+    }
+  });
+
+  // Draw connector lines after nodes are in DOM
+  setTimeout(() => {
+    svg.innerHTML = '';
+    const contentRect = content.getBoundingClientRect();
+    techTree.forEach((tech) => {
+      const node = document.getElementById('tech-node-' + tech.id);
+      if (!node) return;
+      const nodeRect = node.getBoundingClientRect();
+      const nodeCenterX = nodeRect.left + nodeRect.width / 2 - contentRect.left;
+      const nodeTop = nodeRect.top - contentRect.top;
+      const nodeBottom = nodeRect.bottom - contentRect.top;
+      tech.deps.forEach(depId => {
+        let depBase = depId;
+        if (depId.includes('-')) depBase = depId.split('-')[0];
+        const depNode = document.getElementById('tech-node-' + depBase);
+        if (!depNode) return;
+        const depRect = depNode.getBoundingClientRect();
+        const depCenterX = depRect.left + depRect.width / 2 - contentRect.left;
+        const depBottom = depRect.bottom - contentRect.top;
+        // Only draw if both nodes are visible (i.e., at least one is unlocked or available)
+        if (!node.classList.contains('locked') || !depNode.classList.contains('locked')) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', depCenterX);
+          line.setAttribute('y1', depBottom);
+          line.setAttribute('x2', nodeCenterX);
+          line.setAttribute('y2', nodeTop);
+          line.setAttribute('stroke', '#a259ff');
+          line.setAttribute('stroke-width', '3');
+          line.setAttribute('opacity', '0.7');
+          line.setAttribute('filter', 'drop-shadow(0 0 4px #a259ff88)');
+          svg.appendChild(line);
+        }
+      });
+    });
+  }, 0);
+
+  // Redraw lines on window resize
+  if (!window._techTreeResizeListener) {
+    window.addEventListener('resize', () => {
+      if (document.getElementById('tech-tree-modal').style.display === 'block') {
+        renderTechTree();
+      }
+    });
+    window._techTreeResizeListener = true;
+  }
+}
+
+document.getElementById('close-tech-tree').onclick = () => {
+  document.getElementById('tech-tree-modal').style.display = 'none';
+};
+window.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('tech-tree-modal')) document.getElementById('tech-tree-modal').style.display = 'none';
+});
+
+// Example Particle Effects System (for demonstration)
+function createClickParticles(x, y, value) {
+  if (!window.particleEffectsEnabled) return;
+  
+  const particleCount = Math.max(12, Math.min(Math.floor(value / 10), 24)); // Always at least 12
+  const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf'];
+  
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement('div');
+    particle.style.position = 'fixed';
+    particle.style.left = x + 'px';
+    particle.style.top = y + 'px';
+    particle.style.width = '8px';
+    particle.style.height = '8px';
+    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+    particle.style.borderRadius = '50%';
+    particle.style.pointerEvents = 'none';
+    particle.style.zIndex = '999';
+    particle.style.transition = 'none'; // Remove transition for frame-rate independent animation
+    
+    document.body.appendChild(particle);
+    
+    // Physics variables
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.2;
+    const distance = 120 + Math.random() * 60; // Much larger
+    const endX = x + Math.cos(angle) * distance;
+    const endY = y + Math.sin(angle) * distance;
+    
+    // Animate with frame-rate independent timing
+    const startTime = performance.now();
+    const duration = 0.6; // seconds (faster decay)
+    
+    function animateParticle() {
+      const currentTime = performance.now();
+      const elapsed = (currentTime - startTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Ease-out function for smooth deceleration
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      
+      const currentX = x + (endX - x) * easeOut;
+      const currentY = y + (endY - y) * easeOut;
+      const currentScale = 1 - (0.5 * progress);
+      const currentOpacity = 1 - progress;
+      
+      particle.style.transform = `translate(${currentX - x}px, ${currentY - y}px) scale(${currentScale})`;
+      particle.style.opacity = currentOpacity;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateParticle);
+      } else {
+        if (particle.parentNode) {
+          particle.parentNode.removeChild(particle);
+        }
+      }
+    }
+    
+    requestAnimationFrame(animateParticle);
+  }
+}
+
+function createUpgradeParticles(element) {
+  if (!window.particleEffectsEnabled) return;
+  
+  const rect = element.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  
+  // Create sparkle effect
+  for (let i = 0; i < 12; i++) {
+    const sparkle = document.createElement('div');
+    sparkle.style.position = 'fixed';
+    sparkle.style.left = centerX + 'px';
+    sparkle.style.top = centerY + 'px';
+    sparkle.style.width = '3px';
+    sparkle.style.height = '3px';
+    sparkle.style.background = '#ffe066';
+    sparkle.style.borderRadius = '50%';
+    sparkle.style.pointerEvents = 'none';
+    sparkle.style.zIndex = '999';
+    sparkle.style.transition = 'none'; // Remove transition for frame-rate independent animation
+    
+    document.body.appendChild(sparkle);
+    
+    // Physics variables
+    const angle = (Math.PI * 2 * i) / 12;
+    const distance = 40;
+    const speed = 80 + Math.random() * 40; // pixels per second
+    const endX = centerX + Math.cos(angle) * distance;
+    const endY = centerY + Math.sin(angle) * distance;
+    
+    // Animate with frame-rate independent timing
+    const startTime = performance.now();
+    const duration = 0.6; // seconds
+    
+    function animateSparkle() {
+      const currentTime = performance.now();
+      const elapsed = (currentTime - startTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Ease-out function for smooth deceleration
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+      
+      const currentX = centerX + (endX - centerX) * easeOut;
+      const currentY = centerY + (endY - centerY) * easeOut;
+      const currentOpacity = 1 - progress;
+      
+      sparkle.style.transform = `translate(${currentX - centerX}px, ${currentY - centerY}px)`;
+      sparkle.style.opacity = currentOpacity;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateSparkle);
+      } else {
+        if (sparkle.parentNode) {
+          sparkle.parentNode.removeChild(sparkle);
+        }
+      }
+    }
+    
+    requestAnimationFrame(animateSparkle);
+  }
+}
+
+function createAchievementParticles() {
+  if (!window.particleEffectsEnabled) return;
+  
+  // Delay confetti by 0.5 seconds so it appears after popup has faded in
+  setTimeout(() => {
+    // Get the achievement popup position (it's centered at bottom of screen)
+    const popupWidth = 300; // minWidth from the popup
+    const popupHeight = 120; // approximate height
+    const screenCenterX = window.innerWidth / 2;
+    const popupBottomY = window.innerHeight - 50; // bottom: 50px from bottom
+    const popupLeftX = screenCenterX - popupWidth / 2;
+    const popupRightX = screenCenterX + popupWidth / 2;
+    const popupTopY = popupBottomY - popupHeight;
+    
+    // Create confetti effect
+    const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf', '#5a189a', '#3c096c'];
+    
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.style.position = 'fixed';
+      confetti.style.width = '8px';
+      confetti.style.height = '8px';
+      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.pointerEvents = 'none';
+      confetti.style.zIndex = '999';
+      confetti.style.transition = 'none'; // Remove transition for physics-based animation
+      
+      // Random starting position along the sides of the popup
+      const side = Math.random() < 0.5 ? 'left' : 'right';
+      let startX, startY;
+      
+      if (side === 'left') {
+        startX = popupLeftX + Math.random() * 20; // Within 20px of left edge
+        startY = popupTopY + Math.random() * popupHeight; // Random height along left side
+      } else {
+        startX = popupRightX - Math.random() * 20; // Within 20px of right edge
+        startY = popupTopY + Math.random() * popupHeight; // Random height along right side
+      }
+      
+      confetti.style.left = startX + 'px';
+      confetti.style.top = startY + 'px';
+      
+      document.body.appendChild(confetti);
+      
+      // Physics variables
+      const angle = 30 * (Math.PI / 180); // 30 degrees upward
+      const speed = (100 + Math.random() * 100) * 2; // Increased to 200%: 200-400px/s for high arc
+      const direction = side === 'left' ? -1 : 1; // Left side shoots left, right side shoots right
+      
+      let vx = Math.cos(angle) * speed * direction;
+      let vy = -Math.sin(angle) * speed; // Negative because Y increases downward
+      const gravity = 50; // Light gravity: 50px/s²
+      let time = 0;
+      
+      // Animate with physics
+      function animateConfetti() {
+        const currentTime = performance.now();
+        if (!confetti.startTime) confetti.startTime = currentTime;
+        const deltaTime = (currentTime - confetti.startTime) / 1000; // Convert to seconds
+        
+        // Apply gravity
+        vy += gravity * (deltaTime - confetti.lastDeltaTime || 0);
+        confetti.lastDeltaTime = deltaTime;
+        
+        // Update position
+        const newX = startX + vx * deltaTime;
+        const newY = startY + vy * deltaTime;
+        
+        confetti.style.transform = `translate(${newX - startX}px, ${newY - startY}px) rotate(${deltaTime * 360}deg)`;
+        
+        // Continue animation if not off screen
+        if (newY < window.innerHeight + 50 && newX > -50 && newX < window.innerWidth + 50) {
+          requestAnimationFrame(animateConfetti);
+        } else {
+          // Remove confetti when off screen
+          if (confetti.parentNode) {
+            confetti.parentNode.removeChild(confetti);
+          }
+        }
+      }
+      
+      // Start animation
+      requestAnimationFrame(animateConfetti);
+    }
+  }, 500); // 0.5 second delay
+}
+
+function createPPSParticles() {
+  if (!window.particleEffectsEnabled) return;
+  
+  // Create subtle floating particles for PPS gains
+  const particle = document.createElement('div');
+  particle.style.position = 'fixed';
+  particle.style.left = Math.random() * window.innerWidth + 'px';
+  particle.style.top = window.innerHeight + 'px';
+  particle.style.width = '2px';
+  particle.style.height = '2px';
+  particle.style.background = '#c77dff';
+  particle.style.borderRadius = '50%';
+  particle.style.pointerEvents = 'none';
+  particle.style.zIndex = '998';
+  particle.style.transition = 'none'; // Remove transition for frame-rate independent animation
+  
+  document.body.appendChild(particle);
+  
+  // Animate with frame-rate independent timing
+  const startTime = performance.now();
+  const duration = 2; // seconds
+  const startY = window.innerHeight;
+  const endY = -10;
+  
+  function animatePPSParticle() {
+    const currentTime = performance.now();
+    const elapsed = (currentTime - startTime) / 1000;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Linear interpolation for smooth upward movement
+    const currentY = startY + (endY - startY) * progress;
+    const currentOpacity = 1 - progress;
+    
+    particle.style.transform = `translateY(${currentY - startY}px)`;
+    particle.style.opacity = currentOpacity;
+    
+    if (progress < 1) {
+      requestAnimationFrame(animatePPSParticle);
+    } else {
+      if (particle.parentNode) {
+        particle.parentNode.removeChild(particle);
+      }
+    }
+  }
+  
+  requestAnimationFrame(animatePPSParticle);
+}
+
+// Toggle for settings menu
+window.particleEffectsEnabled = true; // Default enabled, can be toggled in settings 
+
+// Settings menu event listeners
+settingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'block';
+  // Sync UI with current values
+  document.getElementById('animation-speed').value = window.animationSpeed;
+  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
+  document.getElementById('falling-limit').value = window.fallingPurpleLimit;
+  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
+  document.getElementById('floating-text-toggle').checked = window.floatingTextEnabled;
+  document.getElementById('screen-shake-toggle').checked = window.screenShakeEnabled;
+  document.getElementById('scream-audio-toggle').checked = window.screamAudioEnabled;
+});
+
+closeSettings.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.style.display = 'none';
+});
+
+// Audio controls
+muteToggle.addEventListener('change', () => {
+  isMuted = muteToggle.checked;
+  muteToggle.checked = isMuted;
+  saveGame();
+});
+
+volumeSlider.addEventListener('input', () => {
+  const volume = parseFloat(volumeSlider.value);
+  volumeValue.textContent = Math.round(volume * 100) + '%';
+  screamAudios.forEach(audio => {
+    audio.volume = volume;
+  });
+  saveGame();
+});
+
+// Particle effects toggle
+particleEffectsToggle.addEventListener('change', () => {
+  window.particleEffectsEnabled = particleEffectsToggle.checked;
+  saveGame();
+});
+
+// Reset game button (moved from stats)
+resetGameBtn.addEventListener('click', () => {
+  if (confirm('Are you sure you want to reset your game? This cannot be undone.')) {
+    localStorage.removeItem('purpleClickerSave');
+    // Explicitly reset all state except audio controls
+    purples = 0;
+    clickValue = 1;
+    totalPurplesEarned = 0;
+    totalClicks = 0;
+    totalAutoClicks = 0;
+    biggestSingleGain = 0;
+    runStartTime = Date.now();
+    prestigePoints = 0;
+    totalPrestigePointsEarned = 0;
+    prestigeMilestone = 100000;
+    manualUpgrades.forEach(u => {
+      u.tier = 0;
+      u.cost = u.baseCost;
+    });
+    buildings.forEach(b => {
+      b.tier = 0;
+      b.cost = b.baseCost;
+    });
+    techTree.forEach(t => {
+      t.level = 0;
+      t.unlocked = false;
+    });
+    achievements.forEach(a => {
+      a.unlocked = false;
+    });
+    saveGame();
+    location.reload();
+  }
+});
+
+document.getElementById('animation-speed').addEventListener('input', (e) => {
+  window.animationSpeed = parseFloat(e.target.value);
+  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
+  saveGame();
+});
+document.getElementById('falling-limit').addEventListener('input', (e) => {
+  window.fallingPurpleLimit = parseInt(e.target.value);
+  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
+  saveGame();
+});
+document.getElementById('floating-text-toggle').addEventListener('change', (e) => {
+  window.floatingTextEnabled = e.target.checked;
+  saveGame();
+});
+document.getElementById('screen-shake-toggle').addEventListener('change', (e) => {
+  window.screenShakeEnabled = e.target.checked;
+  saveGame();
+});
+document.getElementById('scream-audio-toggle').addEventListener('change', (e) => {
+  window.screamAudioEnabled = e.target.checked;
+  saveGame();
+}); 
