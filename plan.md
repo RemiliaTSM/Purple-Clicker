@@ -389,3 +389,48 @@ These upgrades and buildings can be unlocked at different stages and provide mea
 - Reset to defaults button
 - Save/cancel buttons
 - Responsive design for mobile devices 
+
+## Stage System Plan
+
+**Overview:**
+- The game is divided into Stages, each marked by unlocking a key building ("Stage Building").
+- Unlocking a Stage Building introduces a brand new gameplay system or minigame, in addition to increasing production.
+- Each Stage Building requires a milestone (e.g., total Purples, previous building owned, or a specific upgrade).
+- New systems are accessible via new tabs, sidebars, or modals in the UI.
+
+### Stage Buildings & Their Systems
+
+| Stage Building         | Unlocks System/Minigame         | Description (Summary)                                 |
+|-----------------------|----------------------------------|------------------------------------------------------|
+| Purple Bank           | Purplenomics (Stock Market)      | Invest Purples in a simulated market for profit.      |
+| Purple Research Lab   | Research & Tech Tree             | Spend Purples to research permanent upgrades.         |
+| Purple Casino         | Gambling Minigames               | Play slots, roulette, and more for big rewards.       |
+| Purple Portal         | Multiverse Expeditions           | Send expeditions for unique resources and buffs.      |
+| Purple Mine           | Mining Minigame                  | Mine for rare gems and special upgrades.              |
+| Purple Factory        | Production Chains                | Manage and optimize production lines.                 |
+| Purple Observatory    | Celestial Events                 | Track/predict cosmic events for temporary boosts.     |
+| Purple University     | Prestige Specializations         | Choose a specialization for unique bonuses.           |
+| Purple Market         | Trading System                   | Trade resources/upgrades with NPCs or players.        |
+| Purple Shrine         | Rituals & Sacrifices             | Sacrifice for powerful buffs (temp or permanent).     |
+| Purple Arcade         | Skill Minigames                  | Play skill games for bonus Purples/rewards.           |
+| Purple Spaceport      | Space Missions                   | Launch missions for unique resources/meta-currency.   |
+
+### Example Progression Path
+1. Purple Bank → Stock Market
+2. Purple Research Lab → Tech Tree
+3. Purple Casino → Gambling Minigames
+4. Purple Portal → Multiverse Expeditions
+5. Purple Observatory → Celestial Events
+6. Purple University → Prestige Specializations
+7. Purple Market → Trading System
+8. Purple Shrine → Rituals & Sacrifices
+9. Purple Arcade → Skill Minigames
+10. Purple Spaceport → Space Missions
+
+**Synergy:** Some systems interact (e.g., research can improve stock market returns, casino can grant research boosts).
+
+**Replayability:** Systems like Prestige Specializations encourage different playstyles in future runs.
+
+---
+
+*See next section for detailed descriptions of each Stage Building and its system.* 
