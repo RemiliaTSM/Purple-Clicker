@@ -2197,6 +2197,7 @@ function renderSlotMachineUI() {
     <div style="text-align:center;margin-bottom:10px;">
       <label for="slot-bet">Bet (Purples): </label>
       <input id="slot-bet" type="number" min="1" value="10" style="width:80px;text-align:center;" />
+      <button id="all-in-btn" style="margin-left:5px;background:#ff4444;color:white;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;">All-In</button>
       <button id="slot-spin-btn" style="margin-left:10px;">Spin 🎰</button>
     </div>
     <div id="slot-result" style="font-size:2em;text-align:center;height:2.2em;margin-bottom:10px;"></div>
@@ -2220,6 +2221,10 @@ function renderSlotMachineUI() {
     </div>
   `;
   document.getElementById('slot-spin-btn').onclick = spinSlotMachine;
+  document.getElementById('all-in-btn').onclick = () => {
+    const betInput = document.getElementById('slot-bet');
+    betInput.value = purples;
+  };
 }
 
 function spinSlotMachine() {
@@ -2411,3 +2416,12 @@ function createPurpleRain(payout) {
     }, i * 50); // Stagger the creation by 50ms for a more natural rain effect
   }
 }
+
+// Casino close functionality
+closeCasino.addEventListener('click', () => {
+  casinoModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+  if (e.target === casinoModal) casinoModal.style.display = 'none';
+});
