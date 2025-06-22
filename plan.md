@@ -433,3 +433,86 @@ These upgrades and buildings can be unlocked at different stages and provide mea
 ---
 
 *See next section for detailed descriptions of each Stage Building and its system.* 
+
+## Casino System Overview
+
+### Purple Casino Building
+- **Unlock Requirement**: Purchase Purple Casino building (costs 8,000 Purples, +40 PPS per tier)
+- **Function**: Unlocks casino minigames and gambling mechanics
+- **Location**: Accessible via the 🎰 button in the sidebar
+
+### Slot Machine Minigame
+
+#### Game Mechanics
+- **Betting**: Players can bet any amount of Purples (minimum 1, no maximum)
+- **All-In Button**: Instantly sets bet to current purple balance
+- **Spin Animation**: 1-second spinning animation with cycling symbols
+- **Cooldown**: 0.5 seconds between spins for fast-paced gameplay
+
+#### Symbols and Payouts
+| Symbol | Name | Payout (x bet) |
+|--------|------|----------------|
+| 🍇 | Grapes | 2x |
+| 🍒 | Cherries | 3x |
+| 🍋 | Lemon | 5x |
+| 🔔 | Bell | 10x |
+| 💎 | Gem | 25x |
+| 👑 | Crown | 50x |
+| 💜 | Purple | 100x |
+
+#### Win Conditions and Odds
+1. **Three of a Kind (Highest Priority)**:
+   - Three identical symbols in a row
+   - Payout: Symbol's base value × bet amount
+   - Example: 💜💜💜 = 100x bet
+
+2. **Special Two-of-a-Kind Bonuses**:
+   - Two 💜 symbols: 10x bet (instead of 2x)
+   - Two 👑 symbols: 5x bet (instead of 2x)
+   - Two 💎 symbols: 3x bet (instead of 2x)
+
+3. **Regular Two-of-a-Kind**:
+   - Any two identical symbols (except special cases above)
+   - Payout: 2x bet amount
+
+4. **No Win**:
+   - All three symbols are different
+   - No payout, bet is lost
+
+#### Win Probability Analysis
+- **House Edge**: Approximately 15-20% (varies based on symbol distribution)
+- **Best Odds**: Two-of-a-kind combinations (~30-40% chance)
+- **Jackpot**: Three Purple symbols (💜💜💜) - extremely rare, 100x payout
+- **Expected Value**: ~0.8-0.85x bet (meaning players lose ~15-20% on average)
+
+#### Visual Effects
+- **Win Animation**: Result bounces and glows with golden highlight
+- **Purple Rain**: Golden purple images fall from screen when winning
+  - Number of falling purples scales with payout amount
+  - 96px golden purple images with enhanced physics
+  - Bouncy, rotating animation with realistic gravity
+- **Particle Effects**: Sparkle effects on winning combinations
+
+#### Strategy Considerations
+- **High Risk/High Reward**: Large bets can result in massive wins or losses
+- **All-In Strategy**: Risky but potentially game-changing for large purple balances
+- **Small Bet Strategy**: Lower risk, consistent small losses over time
+- **Timing**: No skill element - purely luck-based gambling
+
+#### Integration with Main Game
+- **Purple Generation**: Winnings add to total purple count and statistics
+- **Achievement Potential**: Large wins could trigger special achievements
+- **Economic Impact**: Can significantly accelerate or slow down progression
+- **Risk Management**: Players must balance gambling with steady progression
+
+### Future Casino Features (Potential)
+- **Multiple Minigames**: Roulette, dice games, card games
+- **Casino Upgrades**: Better odds, special bonuses, VIP features
+- **Tournaments**: Competitive gambling events
+- **Casino Currency**: Separate gambling chips or tokens
+- **Progressive Jackpots**: Accumulating prizes across multiple players
+- **Skill-Based Games**: Games requiring timing or strategy instead of pure luck
+
+---
+
+*See next section for detailed descriptions of each Stage Building and its system.* 

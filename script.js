@@ -16,6 +16,25 @@ let prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
 let offlineTimeBank = 0; // in seconds
 let lastActive = Date.now();
 
+// Function to format numbers with space separators
+function formatNumber(num) {
+  if (num < 1000) return num.toString();
+  
+  switch (window.numberFormat) {
+    case 'scientific':
+      return num.toExponential(2);
+    case 'abbreviated':
+      if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
+      if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+      if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+      if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+      return num.toString();
+    case 'separators':
+    default:
+      return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+}
+
 // Variables to track falling purple creation
 let lastFallingPurpleTime = 0;
 let lastPPSUpdate = 0;
@@ -252,8 +271,8 @@ const buildings = [
     id: 'purple_mine',
     name: 'Purple Mine',
     description: '+1,000 Purples per second per tier',
-    baseCost: 500000,
-    cost: 500000,
+    baseCost: 300000,
+    cost: 300000,
     tier: 0,
     pps: 1000,
     costGrowth: 1.8,
@@ -600,6 +619,7 @@ window.fallingPurpleLimit = 200;
 window.floatingTextEnabled = true;
 window.screenShakeEnabled = true;
 window.screamAudioEnabled = true;
+window.numberFormat = 'separators'; // 'separators', 'scientific', 'abbreviated'
 
 function saveGame() {
   const save = {
@@ -628,7 +648,8 @@ function saveGame() {
     fallingPurpleLimit: window.fallingPurpleLimit,
     floatingTextEnabled: window.floatingTextEnabled,
     screenShakeEnabled: window.screenShakeEnabled,
-    screamAudioEnabled: window.screamAudioEnabled
+    screamAudioEnabled: window.screamAudioEnabled,
+    numberFormat: window.numberFormat
   };
   localStorage.setItem('purpleClickerSave', JSON.stringify(save));
 }
@@ -709,6 +730,7 @@ function loadGame() {
     window.floatingTextEnabled = save.floatingTextEnabled ?? true;
     window.screenShakeEnabled = save.screenShakeEnabled ?? true;
     window.screamAudioEnabled = save.screamAudioEnabled ?? true;
+    window.numberFormat = save.numberFormat ?? 'separators';
     saveGame();
     if (statsModal && statsModal.style.display === 'block') renderStats();
   }
@@ -717,7 +739,7 @@ function loadGame() {
 function updateScore() {
   const ppc = getManualClickValue();
   const pps = getPPS();
-  scoreEl.innerHTML = `Purples: ${purples}<br><span style='font-size:0.8em;font-weight:normal;'>Per Click: <b>${ppc}</b><br>Per Second: <b>${pps}</b><br>Clicks/sec: <b>${manualClicksLastSecond}</b></span><br><span style='font-size:0.8em;color:#ffe066;'>Prestige Points: <b>${prestigePoints}</b></span>`;
+  scoreEl.innerHTML = `Purples: ${formatNumber(purples)}<br><span style='font-size:0.8em;font-weight:normal;'>Per Click: <b>${formatNumber(ppc)}</b><br>Per Second: <b>${formatNumber(pps)}</b><br>Clicks/sec: <b>${manualClicksLastSecond}</b></span><br><span style='font-size:0.8em;color:#ffe066;'>Prestige Points: <b>${prestigePoints}</b></span>`;
   checkPrestigeAvailability();
   checkTechTreeAvailability();
 }
@@ -774,7 +796,7 @@ function renderSidebar() {
       btn.innerHTML = `
         <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
         <div style="font-size:0.95em;">${upgrade.description}</div>
-        <div style="margin-top:4px;">Cost: ${upgrade.cost} Purples</div>
+        <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
       `;
       btn.onclick = () => {
         if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
@@ -804,7 +826,7 @@ function renderSidebar() {
       btn.innerHTML = `
         <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
         <div style="font-size:0.95em;">${building.description}</div>
-        <div style="margin-top:4px;">Cost: ${building.cost} Purples</div>
+        <div style="margin-top:4px;">Cost: ${formatNumber(building.cost)} Purples</div>
       `;
       btn.onclick = () => {
         if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
@@ -835,7 +857,7 @@ function renderSidebar() {
       btn.innerHTML = `
         <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
         <div style="font-size:0.95em;">${upgrade.description}</div>
-        <div style="margin-top:4px;">Cost: ${upgrade.cost} Purples</div>
+        <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
       `;
       btn.onclick = () => {
         if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
@@ -864,7 +886,7 @@ function renderSidebar() {
       btn.innerHTML = `
         <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
         <div style="font-size:0.95em;">${building.description}</div>
-        <div style="margin-top:4px;">Cost: ${building.cost} Purples</div>
+        <div style="margin-top:4px;">Cost: ${formatNumber(building.cost)} Purples</div>
       `;
       btn.onclick = () => {
         if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
@@ -994,18 +1016,18 @@ function renderStats() {
   const offlineMinutes = Math.floor((offlineTimeBank % 3600) / 60);
   const offlineSeconds = offlineTimeBank % 60;
   statsContent.innerHTML = `
-    <b>Current Purples:</b> ${purples}<br>
-    <b>Total Purples Earned:</b> ${totalPurplesEarned}<br>
-    <b>Purples Per Second (PPS):</b> ${pps}<br>
-    <b>Purples Per Click (PPC):</b> ${ppc}<br>
-    <b>Total Clicks:</b> ${totalClicks}<br>
-    <b>Total Auto Clicks:</b> ${totalAutoClicks}<br>
+    <b>Current Purples:</b> ${formatNumber(purples)}<br>
+    <b>Total Purples Earned:</b> ${formatNumber(totalPurplesEarned)}<br>
+    <b>Purples Per Second (PPS):</b> ${formatNumber(pps)}<br>
+    <b>Purples Per Click (PPC):</b> ${formatNumber(ppc)}<br>
+    <b>Total Clicks:</b> ${formatNumber(totalClicks)}<br>
+    <b>Total Auto Clicks:</b> ${formatNumber(totalAutoClicks)}<br>
     <b>Run Duration:</b> ${formatTime(runDuration)}<br>
     <b>Current Prestige Points:</b> ${prestigePoints}<br>
     <b>Total Prestige Points Earned:</b> ${totalPrestigePointsEarned}<br>
     <b>Upgrades Owned:</b><br>${upgradesOwned}<br>
     <b>Buildings Owned:</b><br>${buildingsOwned}<br>
-    <b>Biggest Single Gain:</b> ${biggestSingleGain}<br>
+    <b>Biggest Single Gain:</b> ${formatNumber(biggestSingleGain)}<br>
     <b>Manual vs. Auto Ratio:</b> ${manualVsAuto}<br>
     <b>Session Start Time:</b> ${new Date(runStartTime).toLocaleString()}<br>
     <b>Offline Time Bank:</b> ${offlineHours}h ${offlineMinutes}m ${offlineSeconds}s (max 12h)
@@ -1267,7 +1289,7 @@ function showFloatingPlus(x, y, value) {
   
   const plus = document.createElement('div');
   plus.className = 'floating-plus';
-  plus.textContent = `+${value}`;
+  plus.textContent = `+${formatNumber(value)}`;
   plus.style.left = `${x}px`;
   plus.style.top = `${y}px`;
   document.body.appendChild(plus);
@@ -1517,7 +1539,7 @@ function showPrestigeButton() {
     pointsEarned++;
     milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + pointsEarned);
   }
-  btn.textContent = `Prestige! (+${pointsEarned} Prestige Point${pointsEarned !== 1 ? 's' : ''}, Next at ${milestone.toLocaleString()} Purples)`;
+  btn.textContent = `Prestige! (+${pointsEarned} Prestige Point${pointsEarned !== 1 ? 's' : ''}, Next at ${formatNumber(milestone)} Purples)`;
   btn.style.display = 'block';
 }
 
@@ -2000,6 +2022,7 @@ settingsBtn.addEventListener('click', () => {
   document.getElementById('floating-text-toggle').checked = window.floatingTextEnabled;
   document.getElementById('screen-shake-toggle').checked = window.screenShakeEnabled;
   document.getElementById('scream-audio-toggle').checked = window.screamAudioEnabled;
+  document.getElementById('number-format-select').value = window.numberFormat;
 });
 
 closeSettings.addEventListener('click', () => {
@@ -2089,6 +2112,14 @@ document.getElementById('scream-audio-toggle').addEventListener('change', (e) =>
   window.screamAudioEnabled = e.target.checked;
   saveGame();
 }); 
+
+document.getElementById('number-format-select').addEventListener('change', (e) => {
+  window.numberFormat = e.target.value;
+  updateScore();
+  renderSidebar();
+  if (statsModal && statsModal.style.display === 'block') renderStats();
+  saveGame();
+});
 
 // --- Achievement Boosts Mapping ---
 const achievementBoosts = {
@@ -2325,7 +2356,7 @@ function spinSlotMachine() {
       if (payout > 0) {
         purples += payout;
         totalPurplesEarned += payout;
-        payoutMsgEl.textContent = `You won ${payout} Purples!`;
+        payoutMsgEl.textContent = `You won ${formatNumber(payout)} Purples!`;
         // Win animation: bounce and highlight
         resultEl.style.transition = 'transform 0.18s cubic-bezier(.5,1.8,.5,1), box-shadow 0.18s';
         resultEl.style.transform = 'scale(1.25)';
