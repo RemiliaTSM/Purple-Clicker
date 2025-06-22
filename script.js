@@ -20,6 +20,8 @@ let lastActive = Date.now();
 let lastFallingPurpleTime = 0;
 let lastPPSUpdate = 0;
 let currentPPS = 0;
+let manualClicksLastSecond = 0;
+let manualClickTimestamps = [];
 
 const scoreEl = document.getElementById('score');
 const clickerImgBtn = document.getElementById('clicker-img-btn');
@@ -715,7 +717,7 @@ function loadGame() {
 function updateScore() {
   const ppc = getManualClickValue();
   const pps = getPPS();
-  scoreEl.innerHTML = `Purples: ${purples}<br><span style='font-size:0.8em;font-weight:normal;'>Per Click: <b>${ppc}</b><br>Per Second: <b>${pps}</b></span><br><span style='font-size:0.8em;color:#ffe066;'>Prestige Points: <b>${prestigePoints}</b></span>`;
+  scoreEl.innerHTML = `Purples: ${purples}<br><span style='font-size:0.8em;font-weight:normal;'>Per Click: <b>${ppc}</b><br>Per Second: <b>${pps}</b><br>Clicks/sec: <b>${manualClicksLastSecond}</b></span><br><span style='font-size:0.8em;color:#ffe066;'>Prestige Points: <b>${prestigePoints}</b></span>`;
   checkPrestigeAvailability();
   checkTechTreeAvailability();
 }
@@ -889,7 +891,7 @@ function renderSidebar() {
 
 function createFallingPurple() {
   const img = document.createElement('img');
-  img.src = 'purple.png';
+  img.src = 'images/purple.png';
   img.className = 'falling-purple';
 
   // Initial position and velocity
@@ -1292,6 +1294,13 @@ clickerImg.addEventListener('click', (e) => {
     return;
   }
   lastManualClickTime = now;
+  
+  // Track manual clicks for CPS calculation
+  manualClickTimestamps.push(now);
+  // Remove clicks older than 1 second
+  manualClickTimestamps = manualClickTimestamps.filter(timestamp => now - timestamp <= 1000);
+  manualClicksLastSecond = manualClickTimestamps.length;
+  
   // Click Combo logic
   if (manualUpgrades[8].tier > 0 && now - lastClickTime < 1000) {
     clickComboCount++;
@@ -1346,30 +1355,65 @@ clickerImg.addEventListener('click', (e) => {
   }
 });
 
-setInterval(() => {
+// Frame-based purple generation loop
+let lastFrameTime = performance.now();
+let accumulatedTime = 0;
+let lastSecondUpdate = Date.now();
+let fractionalPurples = 0; // Track fractional purples
+
+function gameLoop(currentTime) {
+  const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+  lastFrameTime = currentTime;
+  
   const pps = getPPS();
   if (pps > 0) {
-    purples += pps;
-    totalPurplesEarned += pps;
-    totalAutoClicks += pps;
-    if (pps > biggestSingleGain) biggestSingleGain = pps;
-    updateScore();
-    renderSidebar();
+    // Add purples based on frame rate
+    const purplesThisFrame = pps * deltaTime;
+    fractionalPurples += purplesThisFrame;
+    
+    // Only add whole purples when we have at least 1
+    if (fractionalPurples >= 1) {
+      const wholePurples = Math.floor(fractionalPurples);
+      purples += wholePurples;
+      totalPurplesEarned += wholePurples;
+      totalAutoClicks += wholePurples;
+      fractionalPurples -= wholePurples; // Keep the remainder
+    }
+    
     // Update current PPS for falling purple distribution
     currentPPS = pps;
     lastPPSUpdate = Date.now();
-    // Create PPS particles occasionally
-    if (Math.random() < 0.1) { // 10% chance per second
-      createPPSParticles();
-    }
-    checkAchievements();
-    saveGame();
-    updateSidebarTabPurchasable();
+    
+    // Update score every frame for smooth counter
+    updateScore();
   }
-  // Offline time bank logic
-  offlineTimeBank = Math.min(offlineTimeBank + 10, 43200); // 12 hours max
-  saveGame();
-}, 1000);
+  
+  // Update sidebar and other logic once per second to avoid performance issues
+  accumulatedTime += deltaTime;
+  if (accumulatedTime >= 1.0) {
+    accumulatedTime -= 1.0;
+    
+    if (pps > 0) {
+      if (pps > biggestSingleGain) biggestSingleGain = pps;
+      renderSidebar();
+      // Create PPS particles occasionally
+      if (Math.random() < 0.1) { // 10% chance per second
+        createPPSParticles();
+      }
+      checkAchievements();
+      updateSidebarTabPurchasable();
+    }
+    
+    // Offline time bank logic
+    offlineTimeBank = Math.min(offlineTimeBank + 10, 43200); // 12 hours max
+    saveGame();
+  }
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// Start the game loop
+requestAnimationFrame(gameLoop);
 
 // Create falling purples gradually over time
 setInterval(() => {
@@ -2337,7 +2381,7 @@ function createPurpleRain(payout) {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
       const img = document.createElement('img');
-      img.src = 'purple.png';
+      img.src = 'images/gold_purple.png';
       img.style.position = 'fixed';
       img.style.width = '96px';
       img.style.height = '96px';
