@@ -1,6 +1,6 @@
 # Purple Clicker
 
-Purple Clicker is an incremental clicker game inspired by classics like Cookie Clicker and Universal Paperclip. The goal is to click and accumulate as many points ("Purples") as possible, unlocking upgrades and automation to accelerate your progress.
+Purple Clicker is an incremental clicker game inspired by classics like Cookie Clicker and Universal Paperclip. The goal is to click and accumulate as many Purples as possible, unlocking upgrades and automation to accelerate your progress.
 
 ## Features
 - Simple, addictive clicking gameplay
@@ -11,6 +11,7 @@ Purple Clicker is an incremental clicker game inspired by classics like Cookie C
 ## Getting Started
 1. Clone or download this repository.
 2. Open `index.html` in your web browser to play.
+- You can also play at https://remiliatsm.github.io/Purple-Clicker/
 
 ## Planned Features
 - Achievements

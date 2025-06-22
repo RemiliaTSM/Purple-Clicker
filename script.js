@@ -999,6 +999,15 @@ function renderStats() {
     achievements.map(a => `<li style='margin-bottom:8px;${a.unlocked ? "color:#ffe066;" : "color:#888;"}'>
       ${a.unlocked ? '✔️' : '⬜'} <b>${a.name}</b>: ${a.desc}
     </li>`).join('') + '</ul>';
+  // Add this block:
+  const boosts = getAchievementBoosts();
+  let boostList = Object.entries(achievementBoosts)
+    .filter(([id, b]) => achievements.find(a => a.id === id && a.unlocked))
+    .map(([id, b]) => `<li style='margin-bottom:4px;color:#ffe066;'>${achievements.find(a => a.id === id)?.name}: ${b.desc}</li>`)
+    .join('');
+  if (boostList) {
+    statsContent.innerHTML += `<br><h3 style='margin-top:18px;color:#ffe066;'>Achievement Boosts</h3><ul style='list-style:none;padding:0;'>${boostList}</ul>`;
+  }
 }
 
 statsBtn.addEventListener('click', () => {
@@ -2018,3 +2027,105 @@ document.getElementById('scream-audio-toggle').addEventListener('change', (e) =>
   window.screamAudioEnabled = e.target.checked;
   saveGame();
 }); 
+
+// --- Achievement Boosts Mapping ---
+const achievementBoosts = {
+  first_click:      { type: 'manual', value: 0.01, desc: '+1% manual click gains' },
+  first_1000:       { type: 'all', value: 0.01, desc: '+1% all Purples earned' },
+  first_million:    { type: 'pps', value: 0.02, desc: '+2% PPS' },
+  world_domination: { type: 'all', value: 0.05, desc: '+5% all production' },
+  click_frenzy:     { type: 'manual', value: 0.10, desc: '+10% manual click value' },
+  auto_empire:      { type: 'building', value: 0.02, desc: '+2% building production' },
+  upgrade_collector:{ type: 'upgrade', value: 0.02, desc: '+2% upgrade effects' },
+  farm_tycoon:      { type: 'farm', value: 0.02, desc: '+2% Purple Farm production' },
+  factory_owner:    { type: 'factory', value: 0.02, desc: '+2% Purple Factory production' },
+  mining_magnate:   { type: 'mine', value: 0.02, desc: '+2% Purple Mine production' },
+  lab_rat:          { type: 'lab', value: 0.02, desc: '+2% Purple Lab production' },
+  portal_master:    { type: 'portal', value: 0.02, desc: '+2% Purple Portal production' },
+  galactic_overlord:{ type: 'galactic', value: 0.02, desc: '+2% Galactic Purpler production' },
+  purple_rain:      { type: 'all', value: 0.02, desc: '+2% all Purples earned in a second' },
+  manual_master:    { type: 'manual', value: 0.05, desc: '+5% manual click value' },
+  prestige:         { type: 'prestige', value: 0.05, desc: '+5% prestige bonuses' },
+  idle_idol:        { type: 'idle', value: 0.05, desc: '+5% PPS while idle' },
+  upgrade_maxed:    { type: 'upgrade', value: 0.05, desc: '+5% upgrade effects' },
+  building_boom:    { type: 'building_speed', value: 0.02, desc: '+2% building purchase speed' },
+  sound_of_silence: { type: 'all', value: 0.01, desc: '+1% all production while muted' },
+  speedrunner:      { type: 'all', value: 0.05, desc: '+5% all production for first 10 min' },
+  loyal_clicker:    { type: 'all', value: 0.10, desc: '+10% all production permanently' },
+};
+
+function getAchievementBoosts() {
+  let boosts = {
+    manual: 1,
+    pps: 1,
+    all: 1,
+    building: 1,
+    upgrade: 1,
+    farm: 1,
+    factory: 1,
+    mine: 1,
+    lab: 1,
+    portal: 1,
+    galactic: 1,
+    prestige: 1,
+    idle: 1,
+    building_speed: 1,
+  };
+  achievements.forEach(a => {
+    if (a.unlocked && achievementBoosts[a.id]) {
+      const boost = achievementBoosts[a.id];
+      if (boost.type in boosts) boosts[boost.type] *= (1 + boost.value);
+    }
+  });
+  // Speedrunner: only for first 10 min
+  if (achievementBoosts['speedrunner'] && achievements[20]?.unlocked) {
+    if ((Date.now() - runStartTime) > 10 * 60 * 1000) {
+      boosts.all /= (1 + achievementBoosts['speedrunner'].value);
+    }
+  }
+  // Sound of Silence: only while muted
+  if (achievementBoosts['sound_of_silence'] && achievements[18]?.unlocked) {
+    if (!isMuted) boosts.all /= (1 + achievementBoosts['sound_of_silence'].value);
+  }
+  // Idle Idol: only while idle
+  if (achievementBoosts['idle_idol'] && achievements[15]?.unlocked) {
+    if (Date.now() - window._lastManualClickTime <= 10 * 60 * 1000) {
+      boosts.idle = 1;
+    }
+  }
+  return boosts;
+}
+
+// --- Apply boosts in getManualClickValue ---
+const baseGetManualClickValue = getManualClickValue;
+getManualClickValue = function() {
+  let value = baseGetManualClickValue();
+  const boosts = getAchievementBoosts();
+  value = value * boosts.manual * boosts.all;
+  return Math.floor(value);
+};
+
+// --- Apply boosts in getPPS ---
+const baseGetPPS = getPPS;
+getPPS = function() {
+  let pps = 0;
+  const boosts = getAchievementBoosts();
+  buildings.forEach(b => {
+    let mult = 1;
+    if (b.id === 'purple_farm') mult *= boosts.farm;
+    if (b.id === 'purple_factory') mult *= boosts.factory;
+    if (b.id === 'purple_mine') mult *= boosts.mine;
+    if (b.id === 'purple_lab') mult *= boosts.lab;
+    if (b.id === 'purple_portal') mult *= boosts.portal;
+    if (b.id === 'galactic_purpler') mult *= boosts.galactic;
+    mult *= boosts.building;
+    pps += b.tier * b.pps * mult;
+  });
+  pps += synergyBonus;
+  pps *= boosts.pps * boosts.all;
+  // Idle Idol: +5% PPS while idle
+  if (boosts.idle > 1 && (Date.now() - window._lastManualClickTime > 10 * 60 * 1000)) {
+    pps *= boosts.idle;
+  }
+  return Math.floor(pps);
+}; 
