@@ -352,31 +352,26 @@ h1 {
   align-items: center;
 }
 #tech-tree-content {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 48px 32px;
-  justify-items: center;
+  position: relative;
   width: 100%;
-  margin-top: 24px;
-  margin-bottom: 8px;
+  min-height: 400px;
 }
 .tech-node {
   background: #2d0036;
   color: #ffe066;
   border: 2.5px solid #a259ff;
   border-radius: 16px;
-  padding: 24px 18px 18px 18px;
-  min-width: 200px;
-  max-width: 260px;
+  padding: 6px 4px 5px 4px;
+  min-width: 70px;
+  max-width: 100px;
   width: 100%;
   text-align: center;
-  font-size: 1.08em;
+  font-size: 0.75em;
   box-shadow: 0 4px 18px #0006, 0 1.5px 6px #a259ff33;
   cursor: pointer;
   transition: background 0.18s, border 0.18s, color 0.18s, box-shadow 0.18s, transform 0.12s;
-  position: relative;
-  margin-bottom: 32px;
-  margin-top: 32px;
+  position: absolute;
+  margin: 0;
   outline: none;
 }
 .tech-node:hover:not(.locked):not(.unlocked) {
@@ -437,13 +432,10 @@ h1 {
     padding: 16px 2vw 12px 2vw;
   }
   #tech-tree-content {
-    grid-template-columns: 1fr;
-    gap: 18px 0;
+    min-height: 400px;
   }
   .tech-node {
-    min-width: 0;
-    max-width: 99vw;
-    padding: 16px 6vw 14px 6vw;
+    margin: 0;
   }
 }
 /* (Optional) Connector lines would require extra markup or SVG, so not included in this CSS-only update. */

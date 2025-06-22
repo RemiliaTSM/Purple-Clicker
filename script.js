@@ -291,7 +291,13 @@ const achievements = [
   { id: 'galactic_overlord', name: 'Galactic Overlord', desc: 'Own a Galactic Purpler.', unlocked: false },
   { id: 'purple_rain', name: 'Purple Rain', desc: 'Earn 10,000 Purples in a single second.', unlocked: false },
   { id: 'manual_master', name: 'Manual Master', desc: 'Earn 10,000 Purples by clicking (not automation).', unlocked: false },
-  // ... more achievements as needed ...
+  { id: 'prestige', name: 'Prestige!', desc: 'Prestige for the first time.', unlocked: false },
+  { id: 'idle_idol', name: 'Idle Idol', desc: 'Earn 1,000,000 Purples while idle (no clicks for 10 minutes).', unlocked: false },
+  { id: 'upgrade_maxed', name: 'Upgrade Maxed', desc: 'Max out all upgrades.', unlocked: false },
+  { id: 'building_boom', name: 'Building Boom', desc: 'Buy 10 buildings in one second.', unlocked: false },
+  { id: 'sound_of_silence', name: 'Sound of Silence', desc: 'Play muted for 10 minutes straight.', unlocked: false },
+  { id: 'speedrunner', name: 'Speedrunner', desc: 'Reach 1,000,000 Purples in under 5 minutes.', unlocked: false },
+  { id: 'loyal_clicker', name: 'Loyal Clicker', desc: 'Play for 7 days total.', unlocked: false },
 ];
 
 // Add new arrays for offline upgrades and buildings
@@ -796,8 +802,10 @@ function renderSidebar() {
             meowAudio.currentTime = 0;
             meowAudio.play();
           }
+          // Track building purchases for Building Boom achievement
+          if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
+          window._buildingBuyTimestamps.push(Date.now());
           updateScore();
-          renderSidebar();
           saveGame();
         }
       };
@@ -1140,6 +1148,69 @@ function checkAchievements() {
       }
     }
   }
+  // Prestige! (first prestige)
+  if (!achievements[14].unlocked && totalPrestigePointsEarned > 0) {
+    achievements[14].unlocked = true;
+    showAchievementPopup(achievements[14]);
+  }
+  // Idle Idol (1,000,000 Purples while idle for 10 min)
+  if (!achievements[15].unlocked) {
+    if (!window._idleStart) window._idleStart = Date.now();
+    if (!window._idlePurples) window._idlePurples = 0;
+    if (Date.now() - window._lastManualClickTime > 10 * 60 * 1000) {
+      window._idlePurples += getPPS();
+      if (window._idlePurples >= 1000000) {
+        achievements[15].unlocked = true;
+        showAchievementPopup(achievements[15]);
+      }
+    } else {
+      window._idlePurples = 0;
+      window._idleStart = Date.now();
+    }
+  }
+  // Upgrade Maxed (all upgrades maxed)
+  if (!achievements[16].unlocked && manualUpgrades.every(u => u.tier >= u.maxTier)) {
+    achievements[16].unlocked = true;
+    showAchievementPopup(achievements[16]);
+  }
+  // Building Boom (buy 10 buildings in 1 second)
+  if (!achievements[17].unlocked) {
+    if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
+    window._buildingBuyTimestamps = window._buildingBuyTimestamps.filter(ts => Date.now() - ts <= 1000);
+    if (window._buildingBuyTimestamps.length >= 10) {
+      achievements[17].unlocked = true;
+      showAchievementPopup(achievements[17]);
+    }
+  }
+  // Sound of Silence (play muted for 10 min)
+  if (!achievements[18].unlocked) {
+    if (!window._muteStart) window._muteStart = isMuted ? Date.now() : null;
+    if (isMuted) {
+      if (!window._muteStart) window._muteStart = Date.now();
+      if (Date.now() - window._muteStart > 10 * 60 * 1000) {
+        achievements[18].unlocked = true;
+        showAchievementPopup(achievements[18]);
+      }
+    } else {
+      window._muteStart = null;
+    }
+  }
+  // Speedrunner (1,000,000 Purples in under 5 min)
+  if (!achievements[19].unlocked && purples >= 1000000 && (Date.now() - runStartTime) < 5 * 60 * 1000) {
+    achievements[19].unlocked = true;
+    showAchievementPopup(achievements[19]);
+  }
+  // Loyal Clicker (play for 7 days total)
+  if (!achievements[20].unlocked) {
+    if (!window._totalPlayTime) window._totalPlayTime = 0;
+    if (!window._lastPlayTimeCheck) window._lastPlayTimeCheck = Date.now();
+    window._totalPlayTime += Date.now() - window._lastPlayTimeCheck;
+    window._lastPlayTimeCheck = Date.now();
+    if (window._totalPlayTime >= 7 * 24 * 60 * 60 * 1000) {
+      achievements[20].unlocked = true;
+      showAchievementPopup(achievements[20]);
+    }
+  }
 }
 
 let clickComboCount = 0;
@@ -1428,14 +1499,6 @@ function checkTechTreeAvailability() {
 function renderTechTree() {
   const content = document.getElementById('tech-tree-content');
   content.innerHTML = `<div style='margin-bottom:12px;font-size:1.1em; width:100%; text-align:center;'>Prestige Points: <b>${prestigePoints}</b> (Total Earned: ${totalPrestigePointsEarned})</div>`;
-  // Get branch columns
-  const colManual = document.getElementById('tech-tree-col-manual');
-  const colAuto = document.getElementById('tech-tree-col-auto');
-  const colOffline = document.getElementById('tech-tree-col-offline');
-  const colMeta = document.getElementById('tech-tree-col-meta');
-  // Clear columns
-  [colManual, colAuto, colOffline, colMeta].forEach(col => { if (col) col.innerHTML = ''; });
-  // Clear SVG lines
   let svg = document.getElementById('tech-tree-svg');
   if (!svg) {
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1451,35 +1514,53 @@ function renderTechTree() {
   }
   svg.innerHTML = '';
 
-  // Branch assignment
+  // Tree layout: assign each node a (row, col) based on branch and depth
+  // Branches: manual, auto, offline, meta (left to right)
+  const branchOrder = ['manual', 'auto', 'offline', 'meta'];
   const branchMap = {
-    // Manual Click Branch
-    click_power: colManual,
-    critical_mastery: colManual,
-    combo_chain: colManual,
-    golden_touch: colManual,
-    // Automation Branch
-    auto_efficiency: colAuto,
-    synergy_engine: colAuto,
-    factory_overdrive: colAuto,
-    // Offline Branch
-    offline_booster: colOffline,
-    time_capsule: colOffline,
-    dream_clicks: colOffline,
-    // Meta/Global Branch
-    prestige_multiplier: colMeta,
-    cheaper_upgrades: colMeta,
-    faster_progress: colMeta,
-    // Special/Unique (assign to closest relevant branch)
-    quantum_leap: colOffline,
-    purple_storm: colAuto,
-    cosmetic_unlocks: colMeta,
+    click_power: 'manual',
+    critical_mastery: 'manual',
+    combo_chain: 'manual',
+    golden_touch: 'manual',
+    auto_efficiency: 'auto',
+    synergy_engine: 'auto',
+    factory_overdrive: 'auto',
+    offline_booster: 'offline',
+    time_capsule: 'offline',
+    dream_clicks: 'offline',
+    prestige_multiplier: 'meta',
+    cheaper_upgrades: 'meta',
+    faster_progress: 'meta',
+    quantum_leap: 'offline',
+    purple_storm: 'auto',
+    cosmetic_unlocks: 'meta',
   };
-
-  // Render nodes into columns
+  // Define tree structure for vertical layout
+  const treeLevels = [
+    // Row 0 (roots)
+    ['click_power', 'auto_efficiency', 'offline_booster', 'prestige_multiplier'],
+    // Row 1
+    ['critical_mastery', 'synergy_engine', 'time_capsule', 'cheaper_upgrades'],
+    // Row 2
+    ['combo_chain', 'factory_overdrive', 'dream_clicks', 'faster_progress'],
+    // Row 3 (specials)
+    ['golden_touch', 'purple_storm', 'quantum_leap', 'cosmetic_unlocks'],
+  ];
+  // Map node id to (row, col)
+  const nodePos = {};
+  for (let row = 0; row < treeLevels.length; row++) {
+    for (let col = 0; col < treeLevels[row].length; col++) {
+      nodePos[treeLevels[row][col]] = { row, col };
+    }
+  }
+  // Layout constants
+  const nodeW = 110, nodeH = 70, hGap = 60, vGap = 50;
+  const leftPad = 40, topPad = 60;
+  // Render nodes
   techTree.forEach((tech) => {
-    // Check if dependencies are met
-    const depsMet = tech.deps.every(depId => {
+    const pos = nodePos[tech.id];
+    if (!pos) return;
+    const canBuy = prestigePoints >= tech.cost && tech.deps.every(depId => {
       if (depId.includes('-')) {
         const [baseId, lvl] = depId.split('-');
         const dep = techTree.find(t => t.id === baseId);
@@ -1488,13 +1569,11 @@ function renderTechTree() {
         const dep = techTree.find(t => t.id === depId);
         return dep && (dep.unlocked || dep.level > 0);
       }
-    });
-    const canBuy = prestigePoints >= tech.cost && depsMet && tech.level < tech.maxLevel;
+    }) && tech.level < tech.maxLevel;
     const unlocked = tech.level > 0;
     const node = document.createElement('div');
     node.className = 'tech-node' + (unlocked ? ' unlocked' : (!canBuy ? ' locked' : ''));
     node.id = 'tech-node-' + tech.id;
-    node.style.margin = '32px 0';
     node.innerHTML = `<div style='font-weight:bold;font-size:1.1em;'>${tech.name}</div>
       <div class='desc'>${tech.desc}</div>
       <div class='cost'>Cost: ${tech.cost} PP</div>
@@ -1513,40 +1592,34 @@ function renderTechTree() {
           prestigePoints -= tech.cost;
           tech.level++;
           tech.unlocked = true;
-          // TODO: Apply tech effect
           saveGame();
           renderTechTree();
           updateScore();
         }
       };
     }
-    // Place node in correct column
-    const col = branchMap[tech.id];
-    if (col) {
-      col.appendChild(node);
-      console.log('Appended node', tech.id, 'to column', col.id);
-    } else {
-      content.appendChild(node);
-      console.warn('No column for tech node', tech.id, '- appended to content');
-    }
+    // Position node absolutely
+    node.style.left = (leftPad + pos.col * (nodeW + hGap)) + 'px';
+    node.style.top = (topPad + pos.row * (nodeH + vGap)) + 'px';
+    content.appendChild(node);
   });
-
   // Draw connector lines after nodes are in DOM
   setTimeout(() => {
     svg.innerHTML = '';
     const contentRect = content.getBoundingClientRect();
     techTree.forEach((tech) => {
+      const fromPos = nodePos[tech.id];
       const node = document.getElementById('tech-node-' + tech.id);
-      if (!node) return;
+      if (!fromPos || !node) return;
       const nodeRect = node.getBoundingClientRect();
       const nodeCenterX = nodeRect.left + nodeRect.width / 2 - contentRect.left;
       const nodeTop = nodeRect.top - contentRect.top;
-      const nodeBottom = nodeRect.bottom - contentRect.top;
       tech.deps.forEach(depId => {
         let depBase = depId;
         if (depId.includes('-')) depBase = depId.split('-')[0];
+        const toPos = nodePos[depBase];
         const depNode = document.getElementById('tech-node-' + depBase);
-        if (!depNode) return;
+        if (!toPos || !depNode) return;
         const depRect = depNode.getBoundingClientRect();
         const depCenterX = depRect.left + depRect.width / 2 - contentRect.left;
         const depBottom = depRect.bottom - contentRect.top;
@@ -1566,7 +1639,6 @@ function renderTechTree() {
       });
     });
   }, 0);
-
   // Redraw lines on window resize
   if (!window._techTreeResizeListener) {
     window.addEventListener('resize', () => {
