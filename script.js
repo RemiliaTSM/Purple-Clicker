@@ -32,6 +32,9 @@ const statsContent = document.getElementById('stats-content');
 const showUpgradesBtn = document.getElementById('show-upgrades');
 const showBuildingsBtn = document.getElementById('show-buildings');
 const clickerImg = document.getElementById('clicker-img');
+const showCasinoBtn = document.getElementById('show-casino');
+const casinoModal = document.getElementById('casino-modal');
+const closeCasino = document.getElementById('close-casino');
 
 // Settings menu elements
 const settingsBtn = document.getElementById('settings-btn');
@@ -222,6 +225,16 @@ const buildings = [
     tier: 0,
     pps: 10,
     costGrowth: 1.6,
+  },
+  {
+    id: 'purple_casino',
+    name: 'Purple Casino',
+    description: '+40 Purples per second per tier. Unlocks casino minigames.',
+    baseCost: 8000,
+    cost: 8000,
+    tier: 0,
+    pps: 40,
+    costGrowth: 1.65,
   },
   {
     id: 'purple_factory',
@@ -871,6 +884,7 @@ function renderSidebar() {
     });
   }
   updateSidebarTabPurchasable();
+  checkCasinoUnlock();
 }
 
 function createFallingPurple() {
@@ -1659,12 +1673,16 @@ function renderTechTree() {
   }
 }
 
-document.getElementById('close-tech-tree').onclick = () => {
-  document.getElementById('tech-tree-modal').style.display = 'none';
-};
-window.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('tech-tree-modal')) document.getElementById('tech-tree-modal').style.display = 'none';
-});
+const closeTechTree = document.getElementById('close-tech-tree');
+const techTreeModal = document.getElementById('tech-tree-modal');
+if (closeTechTree && techTreeModal) {
+  closeTechTree.addEventListener('click', () => {
+    techTreeModal.style.display = 'none';
+  });
+  window.addEventListener('click', (e) => {
+    if (e.target === techTreeModal) techTreeModal.style.display = 'none';
+  });
+}
 
 // Example Particle Effects System (for demonstration)
 function createClickParticles(x, y, value) {
@@ -2129,3 +2147,267 @@ getPPS = function() {
   }
   return Math.floor(pps);
 }; 
+
+// Initially disable the casino button
+showCasinoBtn.disabled = true;
+showCasinoBtn.classList.add('disabled');
+
+// Helper to check if player owns a Purple Casino
+function ownsPurpleCasino() {
+  const casino = buildings.find(b => b.id === 'purple_casino');
+  return casino && casino.tier > 0;
+}
+
+// Define checkCasinoUnlock before it is used or patched
+function checkCasinoUnlock() {
+  if (ownsPurpleCasino()) {
+    showCasinoBtn.disabled = false;
+    showCasinoBtn.classList.remove('disabled');
+    if (!window._casinoUnlocked) {
+      window._casinoUnlocked = true;
+    }
+  } else {
+    showCasinoBtn.disabled = true;
+    showCasinoBtn.classList.add('disabled');
+  }
+}
+
+// Patch renderSidebar to check casino unlock after building purchase
+const originalRenderSidebar = renderSidebar;
+renderSidebar = function() {
+  originalRenderSidebar.apply(this, arguments);
+  checkCasinoUnlock();
+};
+
+// --- Slot Machine Minigame ---
+const slotSymbols = [
+  { symbol: '🍇', name: 'Grapes', payout: 2 },
+  { symbol: '🍒', name: 'Cherries', payout: 3 },
+  { symbol: '🍋', name: 'Lemon', payout: 5 },
+  { symbol: '🔔', name: 'Bell', payout: 10 },
+  { symbol: '💎', name: 'Gem', payout: 25 },
+  { symbol: '👑', name: 'Crown', payout: 50 },
+  { symbol: '💜', name: 'Purple', payout: 100 },
+];
+
+function renderSlotMachineUI() {
+  const casinoContent = document.getElementById('casino-content');
+  casinoContent.innerHTML = `
+    <h3 style="color:#ffe066;text-align:center;">Slot Machine</h3>
+    <div style="text-align:center;margin-bottom:10px;">
+      <label for="slot-bet">Bet (Purples): </label>
+      <input id="slot-bet" type="number" min="1" value="10" style="width:80px;text-align:center;" />
+      <button id="slot-spin-btn" style="margin-left:10px;">Spin 🎰</button>
+    </div>
+    <div id="slot-result" style="font-size:2em;text-align:center;height:2.2em;margin-bottom:10px;"></div>
+    <div id="slot-payout-msg" style="text-align:center;color:#ffe066;font-weight:bold;height:1.5em;"></div>
+    <div style="margin-top:18px;">
+      <h4 style="color:#a259ff;text-align:center;">Payout Table</h4>
+      <table style="margin:auto;color:#fff;background:#2d0036;border-radius:8px;overflow:hidden;">
+        <tr><th>Symbols</th><th>Payout (x bet)</th></tr>
+        <tr><td>💜💜💜</td><td>100x</td></tr>
+        <tr><td>👑👑👑</td><td>50x</td></tr>
+        <tr><td>💎💎💎</td><td>25x</td></tr>
+        <tr><td>🔔🔔🔔</td><td>10x</td></tr>
+        <tr><td>🍋🍋🍋</td><td>5x</td></tr>
+        <tr><td>🍒🍒🍒</td><td>3x</td></tr>
+        <tr><td>🍇🍇🍇</td><td>2x</td></tr>
+        <tr><td>Any two 💜</td><td>10x</td></tr>
+        <tr><td>Any two 👑</td><td>5x</td></tr>
+        <tr><td>Any two 💎</td><td>3x</td></tr>
+        <tr><td>Any two of a kind</td><td>2x</td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('slot-spin-btn').onclick = spinSlotMachine;
+}
+
+function spinSlotMachine() {
+  const betInput = document.getElementById('slot-bet');
+  const bet = Math.max(1, parseInt(betInput.value) || 1);
+  const spinBtn = document.getElementById('slot-spin-btn');
+  const resultEl = document.getElementById('slot-result');
+  const payoutMsgEl = document.getElementById('slot-payout-msg');
+  // Clear payout message at the very start of a new spin
+  payoutMsgEl.textContent = '';
+  if (purples < bet) {
+    payoutMsgEl.textContent = 'Not enough Purples!';
+    return;
+  }
+  purples -= bet;
+  updateScore();
+  spinBtn.disabled = true;
+  // Do NOT clear resultEl.textContent here, so the previous result stays until the new animation starts
+
+  // Animation: cycle symbols for 1 second using requestAnimationFrame
+  const animationDuration = 1000; // ms
+  const symbolChangeInterval = 60; // ms per frame
+  let startTime = null;
+  let lastSymbolChange = 0;
+  let finalSpin;
+
+  function animateSpin(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    if (elapsed - lastSymbolChange >= symbolChangeInterval) {
+      const fakeSpin = [0, 0, 0].map(() => slotSymbols[Math.floor(Math.random() * slotSymbols.length)]);
+      resultEl.textContent = fakeSpin.map(s => s.symbol).join(' ');
+      lastSymbolChange = elapsed;
+    }
+    if (elapsed < animationDuration) {
+      requestAnimationFrame(animateSpin);
+    } else {
+      // Actual spin result
+      finalSpin = [0, 0, 0].map(() => slotSymbols[Math.floor(Math.random() * slotSymbols.length)]);
+      resultEl.textContent = finalSpin.map(s => s.symbol).join(' ');
+      // Determine payout
+      let payout = 0;
+      if (finalSpin[0].symbol === finalSpin[1].symbol && finalSpin[1].symbol === finalSpin[2].symbol) {
+        payout = bet * finalSpin[0].payout;
+      } else if (finalSpin.filter(s => s.symbol === '💜').length === 2) {
+        payout = bet * 10;
+      } else if (finalSpin.filter(s => s.symbol === '👑').length === 2) {
+        payout = bet * 5;
+      } else if (finalSpin.filter(s => s.symbol === '💎').length === 2) {
+        payout = bet * 3;
+      } else if (finalSpin[0].symbol === finalSpin[1].symbol || finalSpin[1].symbol === finalSpin[2].symbol || finalSpin[0].symbol === finalSpin[2].symbol) {
+        payout = bet * 2;
+      }
+      if (payout > 0) {
+        purples += payout;
+        totalPurplesEarned += payout;
+        payoutMsgEl.textContent = `You won ${payout} Purples!`;
+        // Win animation: bounce and highlight
+        resultEl.style.transition = 'transform 0.18s cubic-bezier(.5,1.8,.5,1), box-shadow 0.18s';
+        resultEl.style.transform = 'scale(1.25)';
+        resultEl.style.boxShadow = '0 0 18px 4px #ffe066cc';
+        setTimeout(() => {
+          resultEl.style.transform = '';
+          resultEl.style.boxShadow = '';
+        }, 180);
+        // Create purple rain effect based on winnings
+        createPurpleRain(payout);
+      } else {
+        payoutMsgEl.textContent = 'No win. Try again!';
+      }
+      updateScore();
+      saveGame();
+      // Wait 0.5s before enabling spin again, but do NOT clear the result or payout message
+      setTimeout(() => {
+        spinBtn.disabled = false;
+      }, 500);
+    }
+  }
+  requestAnimationFrame(animateSpin);
+}
+
+showCasinoBtn.addEventListener('click', () => {
+  if (!showCasinoBtn.disabled) {
+    casinoModal.style.display = 'block';
+    if (ownsPurpleCasino()) {
+      // If this is the first unlock and the slot machine hasn't been shown yet in this session
+      if (!window._casinoSessionShown && !window._casinoUnlocked) {
+        window._casinoUnlocked = true;
+        window._casinoSessionShown = true;
+        document.getElementById('casino-content').innerHTML = '<p style="text-align:center; color:#a259ff; font-weight:bold;">Congratulations! You unlocked the Purple Casino. Minigames will appear here soon.</p>';
+        setTimeout(() => {
+          renderSlotMachineUI();
+        }, 1200);
+      } else {
+        renderSlotMachineUI();
+      }
+    } else {
+      document.getElementById('casino-content').innerHTML = '<p style="text-align:center; color:#a259ff; font-weight:bold;">You need to purchase a Purple Casino to play minigames!</p>';
+    }
+  }
+});
+
+// --- Purple Rain Effect for Slot Machine Wins ---
+function createPurpleRain(payout) {
+  // Scale the number of falling purples with the payout
+  // Base: 5 purples for small wins, up to 50 for big wins
+  const baseCount = Math.min(50, Math.max(5, Math.floor(payout / 10)));
+  const count = Math.min(100, baseCount); // Cap at 100 for performance
+  
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const img = document.createElement('img');
+      img.src = 'purple.png';
+      img.style.position = 'fixed';
+      img.style.width = '96px';
+      img.style.height = '96px';
+      img.style.zIndex = '999';
+      img.style.pointerEvents = 'none';
+      img.style.transition = 'none';
+      
+      // Random starting position across the top of the screen
+      const startX = Math.random() * window.innerWidth;
+      const startY = -96;
+      
+      img.style.left = startX + 'px';
+      img.style.top = startY + 'px';
+      
+      document.body.appendChild(img);
+      
+      // Physics variables
+      let x = startX;
+      let y = startY;
+      let vx = (Math.random() - 0.5) * 8; // Increased horizontal velocity
+      let vy = Math.random() * 4 + 3; // Increased initial downward velocity
+      const gravity = 0.4; // Slightly increased gravity
+      const bounce = 0.7; // Increased bounce force
+      const friction = 0.98; // Reduced friction for more bouncy movement
+      
+      // Rotation variables
+      let rotation = Math.random() * 360;
+      let rotationSpeed = (Math.random() - 0.5) * 800; // Increased rotation speed
+      
+      let startTime = null;
+      let lastTimestamp = null;
+      
+      function animatePurple(timestamp) {
+        if (!startTime) startTime = timestamp;
+        if (!lastTimestamp) lastTimestamp = timestamp;
+        const deltaTime = (timestamp - lastTimestamp) / 1000;
+        lastTimestamp = timestamp;
+        
+        vy += gravity;
+        x += vx;
+        y += vy;
+        rotation += rotationSpeed * deltaTime;
+        
+        // Bounce off floor
+        if (y + 96 > window.innerHeight) {
+          y = window.innerHeight - 96;
+          vy *= -bounce;
+          vx *= friction;
+          if (Math.abs(vy) < 1) vy = 0;
+          rotationSpeed *= 0.8; // Reduced rotation damping
+        }
+        
+        // Bounce off walls
+        if (x < 0) {
+          x = 0;
+          vx *= -bounce;
+        } else if (x + 96 > window.innerWidth) {
+          x = window.innerWidth - 96;
+          vx *= -bounce;
+        }
+        
+        img.style.transform = `translate(${x - startX}px, ${y - startY}px) rotate(${rotation}deg)`;
+        
+        // Remove after 8 seconds or if off screen
+        const elapsed = (timestamp - startTime) / 1000;
+        if (elapsed > 8 || y > window.innerHeight + 100) {
+          if (img.parentNode) {
+            img.parentNode.removeChild(img);
+          }
+        } else {
+          requestAnimationFrame(animatePurple);
+        }
+      }
+      
+      requestAnimationFrame(animatePurple);
+    }, i * 50); // Stagger the creation by 50ms for a more natural rain effect
+  }
+}
