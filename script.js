@@ -1534,22 +1534,28 @@ updateSidebarTabPurchasable();
 
 function showPrestigeButton() {
   let btn = document.getElementById('prestige-btn');
+  const placeButton = () => {
+    const rect = scoreEl.getBoundingClientRect();
+    btn.style.position = 'fixed';
+    btn.style.left = rect.left + 'px';
+    btn.style.top = (rect.bottom + 8) + 'px'; // 8px gap
+    btn.style.width = rect.width + 'px';
+  };
   if (!btn) {
     btn = document.createElement('button');
     btn.id = 'prestige-btn';
-    btn.style.position = 'fixed';
-    btn.style.top = '80px';
-    btn.style.right = '50%';
-    btn.style.transform = 'translateX(50%)';
-    btn.style.zIndex = 200;
+    btn.textContent = 'Prestige';
     btn.style.background = '#ffe066';
     btn.style.color = '#3e0060';
     btn.style.fontWeight = 'bold';
-    btn.style.fontSize = '1.2em';
-    btn.style.padding = '16px 32px';
+    btn.style.fontSize = '1.1em';
+    btn.style.padding = '10px 16px';
     btn.style.border = 'none';
-    btn.style.borderRadius = '12px';
+    btn.style.borderRadius = '10px';
     btn.style.boxShadow = '0 2px 8px #0005';
+    btn.style.zIndex = '150';
+    document.body.appendChild(btn);
+    window.addEventListener('resize', placeButton);
     btn.onclick = () => {
       if (confirm('Are you sure you want to prestige? This will reset all progress except Prestige Points and unlocked techs!')) {
         // Calculate how many milestones have been passed
@@ -1583,9 +1589,9 @@ function showPrestigeButton() {
         location.reload();
       }
     };
-    document.body.appendChild(btn);
   }
-  // Calculate how many prestige points would be earned if prestiging now
+  placeButton();
+  // update text content as before
   let pointsEarned = 0;
   let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
   let tempPurples = purples;
@@ -1593,7 +1599,7 @@ function showPrestigeButton() {
     pointsEarned++;
     milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + pointsEarned);
   }
-  btn.textContent = `Prestige! (+${pointsEarned} Prestige Point${pointsEarned !== 1 ? 's' : ''}, Next at ${formatNumber(milestone)} Purples)`;
+  btn.textContent = `Prestige! (+${pointsEarned} PP, Next at ${formatNumber(milestone)} Purples)`;
   btn.style.display = 'block';
 }
 
