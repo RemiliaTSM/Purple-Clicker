@@ -622,6 +622,82 @@ window.screenShakeEnabled = true;
 window.screamAudioEnabled = true;
 window.numberFormat = 'separators'; // 'separators', 'scientific', 'abbreviated'
 
+// --- Farm Decor Setup (must be before loadGame) ---
+var farmDecorContainer;
+var savedFarmPositions = []; // Store farm positions persistently
+
+function ensureFarmDecorContainer() {
+  if (!farmDecorContainer) {
+    farmDecorContainer = document.getElementById('farm-decor');
+    if (!farmDecorContainer) {
+      farmDecorContainer = document.createElement('div');
+      farmDecorContainer.id = 'farm-decor';
+      document.body.appendChild(farmDecorContainer);
+    }
+  }
+}
+function rebuildFarmDecorFromSave() {
+  ensureFarmDecorContainer();
+  // Clear existing farm images
+  while (farmDecorContainer.firstChild) farmDecorContainer.removeChild(farmDecorContainer.firstChild);
+  
+  // Recreate farm images from saved positions
+  savedFarmPositions.forEach(pos => {
+    const img = document.createElement('img');
+    img.src = 'images/farm.png';
+    img.style.left = pos.x + 'px';
+    img.style.top = pos.y + 'px';
+    farmDecorContainer.appendChild(img);
+  });
+}
+
+function updateFarmDecor() {
+  ensureFarmDecorContainer();
+  const farmBuilding = buildings.find(b => b.id === 'purple_farm');
+  if (!farmBuilding || farmBuilding.tier === 0) {
+    // Clear all farms if no farms owned
+    while (farmDecorContainer.firstChild) farmDecorContainer.removeChild(farmDecorContainer.firstChild);
+    savedFarmPositions = [];
+    return;
+  }
+  
+  const currentCount = Math.min(farmBuilding.tier, 25); // Cap at 25 farms
+  const containerWidth = window.innerWidth;
+  const containerHeight = window.innerHeight * 0.4; // 40vh from CSS
+  const imgSize = 120;
+  
+  // If we have fewer farms than before, remove excess ones
+  if (currentCount < savedFarmPositions.length) {
+    while (savedFarmPositions.length > currentCount) {
+      savedFarmPositions.pop();
+      if (farmDecorContainer.lastChild) {
+        farmDecorContainer.removeChild(farmDecorContainer.lastChild);
+      }
+    }
+  }
+  
+  // Add new farms if we have more than before
+  while (savedFarmPositions.length < currentCount) {
+    let attempts = 0;
+    let x = 0, y = 0;
+    do {
+      x = Math.random() * (containerWidth - imgSize);
+      y = Math.random() * (containerHeight - imgSize);
+      attempts++;
+    } while (attempts < 30 && savedFarmPositions.some(p => Math.abs(p.x - x) < imgSize && Math.abs(p.y - y) < imgSize));
+    
+    // Save the position
+    savedFarmPositions.push({ x, y });
+    
+    // Create and position the farm image
+    const img = document.createElement('img');
+    img.src = 'images/farm.png';
+    img.style.left = x + 'px';
+    img.style.top = y + 'px';
+    farmDecorContainer.appendChild(img);
+  }
+}
+
 function saveGame() {
   // Capture current PPS before saving
   lastSavedPPS = getPPS();
@@ -656,7 +732,8 @@ function saveGame() {
     floatingTextEnabled: window.floatingTextEnabled,
     screenShakeEnabled: window.screenShakeEnabled,
     screamAudioEnabled: window.screamAudioEnabled,
-    numberFormat: window.numberFormat
+    numberFormat: window.numberFormat,
+    savedFarmPositions: savedFarmPositions
   };
   localStorage.setItem('purpleClickerSave', JSON.stringify(save));
 }
@@ -747,6 +824,11 @@ function loadGame() {
     window.screenShakeEnabled = save.screenShakeEnabled ?? true;
     window.screamAudioEnabled = save.screamAudioEnabled ?? true;
     window.numberFormat = save.numberFormat ?? 'separators';
+    savedFarmPositions = save.savedFarmPositions ?? [];
+    // inside loadGame before saveGame();
+    // Need to rebuild farm images from saved positions
+    rebuildFarmDecorFromSave();
+    updateFarmDecor();
     saveGame();
     if (statsModal && statsModal.style.display === 'block') renderStats();
   }
@@ -858,6 +940,7 @@ function renderSidebar() {
           // Track building purchases for Building Boom achievement
           if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
           window._buildingBuyTimestamps.push(Date.now());
+          if (building.id === 'purple_farm') updateFarmDecor();
           updateScore();
           saveGame();
         }
@@ -1006,6 +1089,242 @@ function createFallingPurple() {
   }
   requestAnimationFrame(animate);
 }
+
+// Achievement boosts system
+const achievementBoosts = {
+  first_click:      { type: 'manual', value: 0.01, desc: '+1% manual click gains' },
+  first_1000:       { type: 'all', value: 0.01, desc: '+1% all Purples earned' },
+  first_million:    { type: 'pps', value: 0.02, desc: '+2% PPS' },
+  world_domination: { type: 'all', value: 0.05, desc: '+5% all production' },
+  click_frenzy:     { type: 'manual', value: 0.10, desc: '+10% manual click value' },
+  auto_empire:      { type: 'building', value: 0.02, desc: '+2% building production' },
+  upgrade_collector:{ type: 'upgrade', value: 0.02, desc: '+2% upgrade effects' },
+  farm_tycoon:      { type: 'farm', value: 0.02, desc: '+2% Purple Farm production' },
+  factory_owner:    { type: 'factory', value: 0.02, desc: '+2% Purple Factory production' },
+  mining_magnate:   { type: 'mine', value: 0.02, desc: '+2% Purple Mine production' },
+  lab_rat:          { type: 'lab', value: 0.02, desc: '+2% Purple Lab production' },
+  portal_master:    { type: 'portal', value: 0.02, desc: '+2% Purple Portal production' },
+  galactic_overlord:{ type: 'galactic', value: 0.02, desc: '+2% Galactic Purpler production' },
+  purple_rain:      { type: 'all', value: 0.02, desc: '+2% all Purples earned in a second' },
+  manual_master:    { type: 'manual', value: 0.05, desc: '+5% manual click value' },
+  prestige:         { type: 'prestige', value: 0.05, desc: '+5% prestige bonuses' },
+  idle_idol:        { type: 'idle', value: 0.05, desc: '+5% PPS while idle' },
+  upgrade_maxed:    { type: 'upgrade', value: 0.05, desc: '+5% upgrade effects' },
+  building_boom:    { type: 'building_speed', value: 0.02, desc: '+2% building purchase speed' },
+  sound_of_silence: { type: 'all', value: 0.01, desc: '+1% all production while muted' },
+  speedrunner:      { type: 'all', value: 0.05, desc: '+5% all production for first 10 min' },
+  loyal_clicker:    { type: 'all', value: 0.10, desc: '+10% all production permanently' },
+};
+
+function getAchievementBoosts() {
+  let boosts = {
+    manual: 1,
+    pps: 1,
+    all: 1,
+    building: 1,
+    upgrade: 1,
+    farm: 1,
+    factory: 1,
+    mine: 1,
+    lab: 1,
+    portal: 1,
+    galactic: 1,
+    prestige: 1,
+    idle: 1,
+    building_speed: 1,
+  };
+  achievements.forEach(a => {
+    if (a.unlocked && achievementBoosts[a.id]) {
+      const boost = achievementBoosts[a.id];
+      if (boost.type in boosts) boosts[boost.type] *= (1 + boost.value);
+    }
+  });
+  return boosts;
+}
+
+// Tech tree renderer
+function renderTechTree() {
+  const content = document.getElementById('tech-tree-content');
+  content.innerHTML = `<div style='margin-bottom:12px;font-size:1.1em; width:100%; text-align:center;'>Prestige Points: <b>${prestigePoints}</b> (Total Earned: ${totalPrestigePointsEarned})</div>`;
+  
+  // Tree layout: assign each node a (row, col) based on branch and depth
+  const treeLevels = [
+    ['click_power', 'auto_efficiency', 'offline_booster', 'prestige_multiplier'],
+    ['critical_mastery', 'synergy_engine', 'time_capsule', 'cheaper_upgrades'],
+    ['combo_chain', 'factory_overdrive', 'dream_clicks', 'faster_progress'],
+    ['golden_touch', 'purple_storm', 'quantum_leap', 'cosmetic_unlocks'],
+  ];
+  const nodePos = {};
+  for (let row = 0; row < treeLevels.length; row++) {
+    for (let col = 0; col < treeLevels[row].length; col++) {
+      nodePos[treeLevels[row][col]] = { row, col };
+    }
+  }
+  const nodeW = 110, nodeH = 70, hGap = 60, vGap = 50;
+  const leftPad = 40, topPad = 60;
+  
+  techTree.forEach((tech) => {
+    const pos = nodePos[tech.id];
+    if (!pos) return;
+    const canBuy = prestigePoints >= tech.cost && tech.deps.every(depId => {
+      if (depId.includes('-')) {
+        const [baseId, lvl] = depId.split('-');
+        const dep = techTree.find(t => t.id === baseId);
+        return dep && dep.level >= parseInt(lvl);
+      } else {
+        const dep = techTree.find(t => t.id === depId);
+        return dep && (dep.unlocked || dep.level > 0);
+      }
+    }) && tech.level < tech.maxLevel;
+    const unlocked = tech.level > 0;
+    const node = document.createElement('div');
+    node.className = 'tech-node' + (unlocked ? ' unlocked' : (!canBuy ? ' locked' : ''));
+    node.style.width = nodeW + 'px';
+    node.style.height = nodeH + 'px';
+    node.style.position = 'absolute';
+    node.style.padding = '8px';
+    node.style.border = unlocked ? '2px solid #ffe066' : (canBuy ? '2px solid #c77dff' : '2px solid #555');
+    node.style.background = unlocked ? '#2a0845' : (canBuy ? '#1a0330' : '#1a1a1a');
+    node.style.borderRadius = '8px';
+    node.style.cursor = canBuy ? 'pointer' : 'default';
+    node.style.fontSize = '0.85em';
+    node.style.color = unlocked ? '#ffe066' : (canBuy ? '#c77dff' : '#888');
+    node.innerHTML = `<div style='font-weight:bold;font-size:1.1em;'>${tech.name}</div>
+      <div style='font-size:0.9em;margin:2px 0;'>${tech.desc}</div>
+      <div style='font-size:0.8em;'>Cost: ${tech.cost} PP</div>
+      <div style='font-size:0.8em;'>Level: ${tech.level}/${tech.maxLevel}</div>`;
+    if (canBuy) {
+      node.onclick = () => {
+        if (prestigePoints >= tech.cost && tech.level < tech.maxLevel) {
+          prestigePoints -= tech.cost;
+          tech.level++;
+          tech.unlocked = true;
+          saveGame();
+          renderTechTree();
+          updateScore();
+        }
+      };
+    }
+    node.style.left = (leftPad + pos.col * (nodeW + hGap)) + 'px';
+    node.style.top = (topPad + pos.row * (nodeH + vGap)) + 'px';
+    content.appendChild(node);
+  });
+}
+
+// Tech tree modal close
+const closeTechTree = document.getElementById('close-tech-tree');
+const techTreeModal = document.getElementById('tech-tree-modal');
+if (closeTechTree && techTreeModal) {
+  closeTechTree.addEventListener('click', () => {
+    techTreeModal.style.display = 'none';
+  });
+  window.addEventListener('click', (e) => {
+    if (e.target === techTreeModal) techTreeModal.style.display = 'none';
+  });
+}
+
+// Settings menu event listeners
+settingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'block';
+  document.getElementById('animation-speed').value = window.animationSpeed;
+  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
+  document.getElementById('falling-limit').value = window.fallingPurpleLimit;
+  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
+  document.getElementById('floating-text-toggle').checked = window.floatingTextEnabled;
+  document.getElementById('screen-shake-toggle').checked = window.screenShakeEnabled;
+  document.getElementById('scream-audio-toggle').checked = window.screamAudioEnabled;
+  document.getElementById('number-format-select').value = window.numberFormat;
+});
+
+closeSettings.addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+
+// Audio controls
+muteToggle.addEventListener('change', () => {
+  isMuted = muteToggle.checked;
+  saveGame();
+});
+
+volumeSlider.addEventListener('input', () => {
+  const volume = parseFloat(volumeSlider.value);
+  volumeValue.textContent = Math.round(volume * 100) + '%';
+  screamAudios.forEach(audio => {
+    audio.volume = volume;
+  });
+  saveGame();
+});
+
+// Particle effects toggle
+particleEffectsToggle.addEventListener('change', () => {
+  window.particleEffectsEnabled = particleEffectsToggle.checked;
+  saveGame();
+});
+
+// Reset game button
+resetGameBtn.addEventListener('click', () => {
+  if (confirm('Are you sure you want to reset your game? This cannot be undone.')) {
+    localStorage.removeItem('purpleClickerSave');
+    purples = 0;
+    clickValue = 1;
+    totalPurplesEarned = 0;
+    totalClicks = 0;
+    totalAutoClicks = 0;
+    biggestSingleGain = 0;
+    runStartTime = Date.now();
+    prestigePoints = 0;
+    totalPrestigePointsEarned = 0;
+    prestigeMilestone = 100000;
+    manualUpgrades.forEach(u => {
+      u.tier = 0;
+      u.cost = u.baseCost;
+    });
+    buildings.forEach(b => {
+      b.tier = 0;
+      b.cost = b.baseCost;
+    });
+    techTree.forEach(t => {
+      t.level = 0;
+      t.unlocked = false;
+    });
+    achievements.forEach(a => {
+      a.unlocked = false;
+    });
+    saveGame();
+    location.reload();
+  }
+});
+
+// Settings controls
+document.getElementById('animation-speed').addEventListener('input', (e) => {
+  window.animationSpeed = parseFloat(e.target.value);
+  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
+  saveGame();
+});
+document.getElementById('falling-limit').addEventListener('input', (e) => {
+  window.fallingPurpleLimit = parseInt(e.target.value);
+  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
+  saveGame();
+});
+document.getElementById('floating-text-toggle').addEventListener('change', (e) => {
+  window.floatingTextEnabled = e.target.checked;
+  saveGame();
+});
+document.getElementById('screen-shake-toggle').addEventListener('change', (e) => {
+  window.screenShakeEnabled = e.target.checked;
+  saveGame();
+});
+document.getElementById('scream-audio-toggle').addEventListener('change', (e) => {
+  window.screamAudioEnabled = e.target.checked;
+  saveGame();
+}); 
+document.getElementById('number-format-select').addEventListener('change', (e) => {
+  window.numberFormat = e.target.value;
+  updateScore();
+  renderSidebar();
+  if (statsModal && statsModal.style.display === 'block') renderStats();
+  saveGame();
+});
 
 function formatTime(ms) {
   const sec = Math.floor(ms / 1000) % 60;
@@ -1532,799 +1851,6 @@ updateScore();
 renderSidebar();
 updateSidebarTabPurchasable();
 
-function showPrestigeButton() {
-  let btn = document.getElementById('prestige-btn');
-  const placeButton = () => {
-    const rect = scoreEl.getBoundingClientRect();
-    btn.style.position = 'fixed';
-    btn.style.left = rect.left + 'px';
-    btn.style.top = (rect.bottom + 8) + 'px'; // 8px gap
-    btn.style.width = rect.width + 'px';
-  };
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'prestige-btn';
-    btn.textContent = 'Prestige';
-    btn.style.background = '#ffe066';
-    btn.style.color = '#3e0060';
-    btn.style.fontWeight = 'bold';
-    btn.style.fontSize = '1.1em';
-    btn.style.padding = '10px 16px';
-    btn.style.border = 'none';
-    btn.style.borderRadius = '10px';
-    btn.style.boxShadow = '0 2px 8px #0005';
-    btn.style.zIndex = '150';
-    document.body.appendChild(btn);
-    window.addEventListener('resize', placeButton);
-    btn.onclick = () => {
-      if (confirm('Are you sure you want to prestige? This will reset all progress except Prestige Points and unlocked techs!')) {
-        // Calculate how many milestones have been passed
-        let milestonesPassed = 0;
-        let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
-        let tempPurples = purples;
-        while (tempPurples >= milestone) {
-          milestonesPassed++;
-          milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + milestonesPassed);
-        }
-        if (milestonesPassed > 0) {
-          totalPrestigePointsEarned += milestonesPassed;
-          prestigePoints += milestonesPassed;
-        }
-        // Update prestige milestone for next prestige
-        prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
-        // Reset all progress except prestigePoints
-        purples = 0;
-        clickValue = 1;
-        totalPurplesEarned = 0;
-        totalClicks = 0;
-        totalAutoClicks = 0;
-        biggestSingleGain = 0;
-        runStartTime = Date.now();
-        synergyClicks = 0;
-        synergyBonus = 0;
-        manualUpgrades.forEach(u => { u.tier = 0; u.cost = u.baseCost; });
-        buildings.forEach(b => { b.tier = 0; b.cost = b.baseCost; });
-        // TODO: Reset tech tree except unlocked techs
-        saveGame();
-        location.reload();
-      }
-    };
-  }
-  placeButton();
-  // update text content as before
-  let pointsEarned = 0;
-  let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
-  let tempPurples = purples;
-  while (tempPurples >= milestone) {
-    pointsEarned++;
-    milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + pointsEarned);
-  }
-  btn.textContent = `Prestige! (+${pointsEarned} PP, Next at ${formatNumber(milestone)} Purples)`;
-  btn.style.display = 'block';
-}
-
-function hidePrestigeButton() {
-  const btn = document.getElementById('prestige-btn');
-  if (btn) btn.style.display = 'none';
-}
-
-// Show/hide prestige button based on milestone
-function checkPrestigeAvailability() {
-  if (purples >= prestigeMilestone) {
-    showPrestigeButton();
-  } else {
-    hidePrestigeButton();
-  }
-}
-
-// Tech Tree UI logic
-function showTechTreeButton() {
-  let btn = document.getElementById('tech-tree-btn');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'tech-tree-btn';
-    btn.title = 'Prestige Tech Tree';
-    btn.textContent = '🌳';
-    btn.style.fontSize = '1.6em';
-    btn.onclick = () => {
-      document.getElementById('tech-tree-modal').style.display = 'block';
-      setTimeout(renderTechTree, 0);
-    };
-    document.body.appendChild(btn);
-  }
-  btn.classList.add('visible');
-}
-function hideTechTreeButton() {
-  const btn = document.getElementById('tech-tree-btn');
-  if (btn) btn.classList.remove('visible');
-}
-
-// Show tech tree button if you have any prestige points
-function checkTechTreeAvailability() {
-  showTechTreeButton();
-}
-
-// Render tech tree modal
-function renderTechTree() {
-  const content = document.getElementById('tech-tree-content');
-  content.innerHTML = `<div style='margin-bottom:12px;font-size:1.1em; width:100%; text-align:center;'>Prestige Points: <b>${prestigePoints}</b> (Total Earned: ${totalPrestigePointsEarned})</div>`;
-  let svg = document.getElementById('tech-tree-svg');
-  if (!svg) {
-    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.id = 'tech-tree-svg';
-    svg.style.position = 'absolute';
-    svg.style.top = '0';
-    svg.style.left = '0';
-    svg.style.width = '100%';
-    svg.style.height = '100%';
-    svg.style.pointerEvents = 'none';
-    svg.style.zIndex = '1';
-    content.appendChild(svg);
-  }
-  svg.innerHTML = '';
-
-  // Tree layout: assign each node a (row, col) based on branch and depth
-  // Branches: manual, auto, offline, meta (left to right)
-  const branchOrder = ['manual', 'auto', 'offline', 'meta'];
-  const branchMap = {
-    click_power: 'manual',
-    critical_mastery: 'manual',
-    combo_chain: 'manual',
-    golden_touch: 'manual',
-    auto_efficiency: 'auto',
-    synergy_engine: 'auto',
-    factory_overdrive: 'auto',
-    offline_booster: 'offline',
-    time_capsule: 'offline',
-    dream_clicks: 'offline',
-    prestige_multiplier: 'meta',
-    cheaper_upgrades: 'meta',
-    faster_progress: 'meta',
-    quantum_leap: 'offline',
-    purple_storm: 'auto',
-    cosmetic_unlocks: 'meta',
-  };
-  // Define tree structure for vertical layout
-  const treeLevels = [
-    // Row 0 (roots)
-    ['click_power', 'auto_efficiency', 'offline_booster', 'prestige_multiplier'],
-    // Row 1
-    ['critical_mastery', 'synergy_engine', 'time_capsule', 'cheaper_upgrades'],
-    // Row 2
-    ['combo_chain', 'factory_overdrive', 'dream_clicks', 'faster_progress'],
-    // Row 3 (specials)
-    ['golden_touch', 'purple_storm', 'quantum_leap', 'cosmetic_unlocks'],
-  ];
-  // Map node id to (row, col)
-  const nodePos = {};
-  for (let row = 0; row < treeLevels.length; row++) {
-    for (let col = 0; col < treeLevels[row].length; col++) {
-      nodePos[treeLevels[row][col]] = { row, col };
-    }
-  }
-  // Layout constants
-  const nodeW = 110, nodeH = 70, hGap = 60, vGap = 50;
-  const leftPad = 40, topPad = 60;
-  // Render nodes
-  techTree.forEach((tech) => {
-    const pos = nodePos[tech.id];
-    if (!pos) return;
-    const canBuy = prestigePoints >= tech.cost && tech.deps.every(depId => {
-      if (depId.includes('-')) {
-        const [baseId, lvl] = depId.split('-');
-        const dep = techTree.find(t => t.id === baseId);
-        return dep && dep.level >= parseInt(lvl);
-      } else {
-        const dep = techTree.find(t => t.id === depId);
-        return dep && (dep.unlocked || dep.level > 0);
-      }
-    }) && tech.level < tech.maxLevel;
-    const unlocked = tech.level > 0;
-    const node = document.createElement('div');
-    node.className = 'tech-node' + (unlocked ? ' unlocked' : (!canBuy ? ' locked' : ''));
-    node.id = 'tech-node-' + tech.id;
-    node.innerHTML = `<div style='font-weight:bold;font-size:1.1em;'>${tech.name}</div>
-      <div class='desc'>${tech.desc}</div>
-      <div class='cost'>Cost: ${tech.cost} PP</div>
-      <div class='level'>Level: ${tech.level}/${tech.maxLevel}</div>
-      ${tech.deps.length ? `<div class='requirements'>Requires: ${tech.deps.map(d => {
-        if (d.includes('-')) {
-          const [baseId, lvl] = d.split('-');
-          return `${techTree.find(t => t.id === baseId)?.name} (${lvl})`;
-        } else {
-          return techTree.find(t => t.id === d)?.name;
-        }
-      }).join(', ')}</div>` : ''}`;
-    if (canBuy) {
-      node.onclick = () => {
-        if (prestigePoints >= tech.cost && tech.level < tech.maxLevel) {
-          prestigePoints -= tech.cost;
-          tech.level++;
-          tech.unlocked = true;
-          saveGame();
-          renderTechTree();
-          updateScore();
-        }
-      };
-    }
-    // Position node absolutely
-    node.style.left = (leftPad + pos.col * (nodeW + hGap)) + 'px';
-    node.style.top = (topPad + pos.row * (nodeH + vGap)) + 'px';
-    content.appendChild(node);
-  });
-  // Draw connector lines after nodes are in DOM
-  setTimeout(() => {
-    svg.innerHTML = '';
-    const contentRect = content.getBoundingClientRect();
-    techTree.forEach((tech) => {
-      const fromPos = nodePos[tech.id];
-      const node = document.getElementById('tech-node-' + tech.id);
-      if (!fromPos || !node) return;
-      const nodeRect = node.getBoundingClientRect();
-      const nodeCenterX = nodeRect.left + nodeRect.width / 2 - contentRect.left;
-      const nodeTop = nodeRect.top - contentRect.top;
-      tech.deps.forEach(depId => {
-        let depBase = depId;
-        if (depId.includes('-')) depBase = depId.split('-')[0];
-        const toPos = nodePos[depBase];
-        const depNode = document.getElementById('tech-node-' + depBase);
-        if (!toPos || !depNode) return;
-        const depRect = depNode.getBoundingClientRect();
-        const depCenterX = depRect.left + depRect.width / 2 - contentRect.left;
-        const depBottom = depRect.bottom - contentRect.top;
-        // Only draw if both nodes are visible (i.e., at least one is unlocked or available)
-        if (!node.classList.contains('locked') || !depNode.classList.contains('locked')) {
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('x1', depCenterX);
-          line.setAttribute('y1', depBottom);
-          line.setAttribute('x2', nodeCenterX);
-          line.setAttribute('y2', nodeTop);
-          line.setAttribute('stroke', '#a259ff');
-          line.setAttribute('stroke-width', '3');
-          line.setAttribute('opacity', '0.7');
-          line.setAttribute('filter', 'drop-shadow(0 0 4px #a259ff88)');
-          svg.appendChild(line);
-        }
-      });
-    });
-  }, 0);
-  // Redraw lines on window resize
-  if (!window._techTreeResizeListener) {
-    window.addEventListener('resize', () => {
-      if (document.getElementById('tech-tree-modal').style.display === 'block') {
-        renderTechTree();
-      }
-    });
-    window._techTreeResizeListener = true;
-  }
-}
-
-const closeTechTree = document.getElementById('close-tech-tree');
-const techTreeModal = document.getElementById('tech-tree-modal');
-if (closeTechTree && techTreeModal) {
-  closeTechTree.addEventListener('click', () => {
-    techTreeModal.style.display = 'none';
-  });
-  window.addEventListener('click', (e) => {
-    if (e.target === techTreeModal) techTreeModal.style.display = 'none';
-  });
-}
-
-// Example Particle Effects System (for demonstration)
-function createClickParticles(x, y, value) {
-  if (!window.particleEffectsEnabled) return;
-  
-  const particleCount = Math.max(12, Math.min(Math.floor(value / 10), 24)); // Always at least 12
-  const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf'];
-  
-  for (let i = 0; i < particleCount; i++) {
-    const particle = document.createElement('div');
-    particle.style.position = 'fixed';
-    particle.style.left = x + 'px';
-    particle.style.top = y + 'px';
-    particle.style.width = '8px';
-    particle.style.height = '8px';
-    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-    particle.style.borderRadius = '50%';
-    particle.style.pointerEvents = 'none';
-    particle.style.zIndex = '999';
-    particle.style.transition = 'none'; // Remove transition for frame-rate independent animation
-    
-    document.body.appendChild(particle);
-    
-    // Physics variables
-    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.2;
-    const distance = 120 + Math.random() * 60; // Much larger
-    const endX = x + Math.cos(angle) * distance;
-    const endY = y + Math.sin(angle) * distance;
-    
-    // Animate with frame-rate independent timing
-    const startTime = performance.now();
-    const duration = 0.6; // seconds (faster decay)
-    
-    function animateParticle() {
-      const currentTime = performance.now();
-      const elapsed = (currentTime - startTime) / 1000;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Ease-out function for smooth deceleration
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      
-      const currentX = x + (endX - x) * easeOut;
-      const currentY = y + (endY - y) * easeOut;
-      const currentScale = 1 - (0.5 * progress);
-      const currentOpacity = 1 - progress;
-      
-      particle.style.transform = `translate(${currentX - x}px, ${currentY - y}px) scale(${currentScale})`;
-      particle.style.opacity = currentOpacity;
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateParticle);
-      } else {
-        if (particle.parentNode) {
-          particle.parentNode.removeChild(particle);
-        }
-      }
-    }
-    
-    requestAnimationFrame(animateParticle);
-  }
-}
-
-function createUpgradeParticles(element) {
-  if (!window.particleEffectsEnabled) return;
-  
-  const rect = element.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  
-  // Create sparkle effect
-  for (let i = 0; i < 12; i++) {
-    const sparkle = document.createElement('div');
-    sparkle.style.position = 'fixed';
-    sparkle.style.left = centerX + 'px';
-    sparkle.style.top = centerY + 'px';
-    sparkle.style.width = '3px';
-    sparkle.style.height = '3px';
-    sparkle.style.background = '#ffe066';
-    sparkle.style.borderRadius = '50%';
-    sparkle.style.pointerEvents = 'none';
-    sparkle.style.zIndex = '999';
-    sparkle.style.transition = 'none'; // Remove transition for frame-rate independent animation
-    
-    document.body.appendChild(sparkle);
-    
-    // Physics variables
-    const angle = (Math.PI * 2 * i) / 12;
-    const distance = 40;
-    const speed = 80 + Math.random() * 40; // pixels per second
-    const endX = centerX + Math.cos(angle) * distance;
-    const endY = centerY + Math.sin(angle) * distance;
-    
-    // Animate with frame-rate independent timing
-    const startTime = performance.now();
-    const duration = 0.6; // seconds
-    
-    function animateSparkle() {
-      const currentTime = performance.now();
-      const elapsed = (currentTime - startTime) / 1000;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Ease-out function for smooth deceleration
-      const easeOut = 1 - Math.pow(1 - progress, 2);
-      
-      const currentX = centerX + (endX - centerX) * easeOut;
-      const currentY = centerY + (endY - centerY) * easeOut;
-      const currentOpacity = 1 - progress;
-      
-      sparkle.style.transform = `translate(${currentX - centerX}px, ${currentY - centerY}px)`;
-      sparkle.style.opacity = currentOpacity;
-      
-      if (progress < 1) {
-        requestAnimationFrame(animateSparkle);
-      } else {
-        if (sparkle.parentNode) {
-          sparkle.parentNode.removeChild(sparkle);
-        }
-      }
-    }
-    
-    requestAnimationFrame(animateSparkle);
-  }
-}
-
-function createAchievementParticles() {
-  if (!window.particleEffectsEnabled) return;
-  
-  // Delay confetti by 0.5 seconds so it appears after popup has faded in
-  setTimeout(() => {
-    // Get the achievement popup position (it's centered at bottom of screen)
-    const popupWidth = 300; // minWidth from the popup
-    const popupHeight = 120; // approximate height
-    const screenCenterX = window.innerWidth / 2;
-    const popupBottomY = window.innerHeight - 50; // bottom: 50px from bottom
-    const popupLeftX = screenCenterX - popupWidth / 2;
-    const popupRightX = screenCenterX + popupWidth / 2;
-    const popupTopY = popupBottomY - popupHeight;
-    
-    // Create confetti effect
-    const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf', '#5a189a', '#3c096c'];
-    
-    for (let i = 0; i < 50; i++) {
-      const confetti = document.createElement('div');
-      confetti.style.position = 'fixed';
-      confetti.style.width = '8px';
-      confetti.style.height = '8px';
-      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.pointerEvents = 'none';
-      confetti.style.zIndex = '999';
-      confetti.style.transition = 'none'; // Remove transition for physics-based animation
-      
-      // Random starting position along the sides of the popup
-      const side = Math.random() < 0.5 ? 'left' : 'right';
-      let startX, startY;
-      
-      if (side === 'left') {
-        startX = popupLeftX + Math.random() * 20; // Within 20px of left edge
-        startY = popupTopY + Math.random() * popupHeight; // Random height along left side
-      } else {
-        startX = popupRightX - Math.random() * 20; // Within 20px of right edge
-        startY = popupTopY + Math.random() * popupHeight; // Random height along right side
-      }
-      
-      confetti.style.left = startX + 'px';
-      confetti.style.top = startY + 'px';
-      
-      document.body.appendChild(confetti);
-      
-      // Physics variables
-      const angle = 30 * (Math.PI / 180); // 30 degrees upward
-      const speed = (100 + Math.random() * 100) * 2; // Increased to 200%: 200-400px/s for high arc
-      const direction = side === 'left' ? -1 : 1; // Left side shoots left, right side shoots right
-      
-      let vx = Math.cos(angle) * speed * direction;
-      let vy = -Math.sin(angle) * speed; // Negative because Y increases downward
-      const gravity = 50; // Light gravity: 50px/s²
-      let time = 0;
-      
-      // Animate with physics
-      function animateConfetti() {
-        const currentTime = performance.now();
-        if (!confetti.startTime) confetti.startTime = currentTime;
-        const deltaTime = (currentTime - confetti.startTime) / 1000; // Convert to seconds
-        
-        // Apply gravity
-        vy += gravity * (deltaTime - confetti.lastDeltaTime || 0);
-        confetti.lastDeltaTime = deltaTime;
-        
-        // Update position
-        const newX = startX + vx * deltaTime;
-        const newY = startY + vy * deltaTime;
-        
-        confetti.style.transform = `translate(${newX - startX}px, ${newY - startY}px) rotate(${deltaTime * 360}deg)`;
-        
-        // Continue animation if not off screen
-        if (newY < window.innerHeight + 50 && newX > -50 && newX < window.innerWidth + 50) {
-          requestAnimationFrame(animateConfetti);
-        } else {
-          // Remove confetti when off screen
-          if (confetti.parentNode) {
-            confetti.parentNode.removeChild(confetti);
-          }
-        }
-      }
-      
-      // Start animation
-      requestAnimationFrame(animateConfetti);
-    }
-  }, 500); // 0.5 second delay
-}
-
-function createPPSParticles() {
-  if (!window.particleEffectsEnabled) return;
-  
-  // Create subtle floating particles for PPS gains
-  const particle = document.createElement('div');
-  particle.style.position = 'fixed';
-  particle.style.left = Math.random() * window.innerWidth + 'px';
-  particle.style.top = window.innerHeight + 'px';
-  particle.style.width = '2px';
-  particle.style.height = '2px';
-  particle.style.background = '#c77dff';
-  particle.style.borderRadius = '50%';
-  particle.style.pointerEvents = 'none';
-  particle.style.zIndex = '998';
-  particle.style.transition = 'none'; // Remove transition for frame-rate independent animation
-  
-  document.body.appendChild(particle);
-  
-  // Animate with frame-rate independent timing
-  const startTime = performance.now();
-  const duration = 2; // seconds
-  const startY = window.innerHeight;
-  const endY = -10;
-  
-  function animatePPSParticle() {
-    const currentTime = performance.now();
-    const elapsed = (currentTime - startTime) / 1000;
-    const progress = Math.min(elapsed / duration, 1);
-    
-    // Linear interpolation for smooth upward movement
-    const currentY = startY + (endY - startY) * progress;
-    const currentOpacity = 1 - progress;
-    
-    particle.style.transform = `translateY(${currentY - startY}px)`;
-    particle.style.opacity = currentOpacity;
-    
-    if (progress < 1) {
-      requestAnimationFrame(animatePPSParticle);
-    } else {
-      if (particle.parentNode) {
-        particle.parentNode.removeChild(particle);
-      }
-    }
-  }
-  
-  requestAnimationFrame(animatePPSParticle);
-}
-
-// Toggle for settings menu
-window.particleEffectsEnabled = true; // Default enabled, can be toggled in settings 
-
-// Settings menu event listeners
-settingsBtn.addEventListener('click', () => {
-  settingsModal.style.display = 'block';
-  // Sync UI with current values
-  document.getElementById('animation-speed').value = window.animationSpeed;
-  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
-  document.getElementById('falling-limit').value = window.fallingPurpleLimit;
-  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
-  document.getElementById('floating-text-toggle').checked = window.floatingTextEnabled;
-  document.getElementById('screen-shake-toggle').checked = window.screenShakeEnabled;
-  document.getElementById('scream-audio-toggle').checked = window.screamAudioEnabled;
-  document.getElementById('number-format-select').value = window.numberFormat;
-});
-
-closeSettings.addEventListener('click', () => {
-  settingsModal.style.display = 'none';
-});
-
-window.addEventListener('click', (e) => {
-  if (e.target === settingsModal) settingsModal.style.display = 'none';
-});
-
-// Audio controls
-muteToggle.addEventListener('change', () => {
-  isMuted = muteToggle.checked;
-  muteToggle.checked = isMuted;
-  saveGame();
-});
-
-volumeSlider.addEventListener('input', () => {
-  const volume = parseFloat(volumeSlider.value);
-  volumeValue.textContent = Math.round(volume * 100) + '%';
-  screamAudios.forEach(audio => {
-    audio.volume = volume;
-  });
-  saveGame();
-});
-
-// Particle effects toggle
-particleEffectsToggle.addEventListener('change', () => {
-  window.particleEffectsEnabled = particleEffectsToggle.checked;
-  saveGame();
-});
-
-// Reset game button (moved from stats)
-resetGameBtn.addEventListener('click', () => {
-  if (confirm('Are you sure you want to reset your game? This cannot be undone.')) {
-    localStorage.removeItem('purpleClickerSave');
-    // Explicitly reset all state except audio controls
-    purples = 0;
-    clickValue = 1;
-    totalPurplesEarned = 0;
-    totalClicks = 0;
-    totalAutoClicks = 0;
-    biggestSingleGain = 0;
-    runStartTime = Date.now();
-    prestigePoints = 0;
-    totalPrestigePointsEarned = 0;
-    prestigeMilestone = 100000;
-    manualUpgrades.forEach(u => {
-      u.tier = 0;
-      u.cost = u.baseCost;
-    });
-    buildings.forEach(b => {
-      b.tier = 0;
-      b.cost = b.baseCost;
-    });
-    techTree.forEach(t => {
-      t.level = 0;
-      t.unlocked = false;
-    });
-    achievements.forEach(a => {
-      a.unlocked = false;
-    });
-    saveGame();
-    location.reload();
-  }
-});
-
-document.getElementById('animation-speed').addEventListener('input', (e) => {
-  window.animationSpeed = parseFloat(e.target.value);
-  document.getElementById('animation-speed-value').textContent = window.animationSpeed + 'x';
-  saveGame();
-});
-document.getElementById('falling-limit').addEventListener('input', (e) => {
-  window.fallingPurpleLimit = parseInt(e.target.value);
-  document.getElementById('falling-limit-value').textContent = window.fallingPurpleLimit;
-  saveGame();
-});
-document.getElementById('floating-text-toggle').addEventListener('change', (e) => {
-  window.floatingTextEnabled = e.target.checked;
-  saveGame();
-});
-document.getElementById('screen-shake-toggle').addEventListener('change', (e) => {
-  window.screenShakeEnabled = e.target.checked;
-  saveGame();
-});
-document.getElementById('scream-audio-toggle').addEventListener('change', (e) => {
-  window.screamAudioEnabled = e.target.checked;
-  saveGame();
-}); 
-
-document.getElementById('number-format-select').addEventListener('change', (e) => {
-  window.numberFormat = e.target.value;
-  updateScore();
-  renderSidebar();
-  if (statsModal && statsModal.style.display === 'block') renderStats();
-  saveGame();
-});
-
-// --- Achievement Boosts Mapping ---
-const achievementBoosts = {
-  first_click:      { type: 'manual', value: 0.01, desc: '+1% manual click gains' },
-  first_1000:       { type: 'all', value: 0.01, desc: '+1% all Purples earned' },
-  first_million:    { type: 'pps', value: 0.02, desc: '+2% PPS' },
-  world_domination: { type: 'all', value: 0.05, desc: '+5% all production' },
-  click_frenzy:     { type: 'manual', value: 0.10, desc: '+10% manual click value' },
-  auto_empire:      { type: 'building', value: 0.02, desc: '+2% building production' },
-  upgrade_collector:{ type: 'upgrade', value: 0.02, desc: '+2% upgrade effects' },
-  farm_tycoon:      { type: 'farm', value: 0.02, desc: '+2% Purple Farm production' },
-  factory_owner:    { type: 'factory', value: 0.02, desc: '+2% Purple Factory production' },
-  mining_magnate:   { type: 'mine', value: 0.02, desc: '+2% Purple Mine production' },
-  lab_rat:          { type: 'lab', value: 0.02, desc: '+2% Purple Lab production' },
-  portal_master:    { type: 'portal', value: 0.02, desc: '+2% Purple Portal production' },
-  galactic_overlord:{ type: 'galactic', value: 0.02, desc: '+2% Galactic Purpler production' },
-  purple_rain:      { type: 'all', value: 0.02, desc: '+2% all Purples earned in a second' },
-  manual_master:    { type: 'manual', value: 0.05, desc: '+5% manual click value' },
-  prestige:         { type: 'prestige', value: 0.05, desc: '+5% prestige bonuses' },
-  idle_idol:        { type: 'idle', value: 0.05, desc: '+5% PPS while idle' },
-  upgrade_maxed:    { type: 'upgrade', value: 0.05, desc: '+5% upgrade effects' },
-  building_boom:    { type: 'building_speed', value: 0.02, desc: '+2% building purchase speed' },
-  sound_of_silence: { type: 'all', value: 0.01, desc: '+1% all production while muted' },
-  speedrunner:      { type: 'all', value: 0.05, desc: '+5% all production for first 10 min' },
-  loyal_clicker:    { type: 'all', value: 0.10, desc: '+10% all production permanently' },
-};
-
-function getAchievementBoosts() {
-  let boosts = {
-    manual: 1,
-    pps: 1,
-    all: 1,
-    building: 1,
-    upgrade: 1,
-    farm: 1,
-    factory: 1,
-    mine: 1,
-    lab: 1,
-    portal: 1,
-    galactic: 1,
-    prestige: 1,
-    idle: 1,
-    building_speed: 1,
-  };
-  achievements.forEach(a => {
-    if (a.unlocked && achievementBoosts[a.id]) {
-      const boost = achievementBoosts[a.id];
-      if (boost.type in boosts) boosts[boost.type] *= (1 + boost.value);
-    }
-  });
-  // Speedrunner: only for first 10 min
-  if (achievementBoosts['speedrunner'] && achievements[20]?.unlocked) {
-    if ((Date.now() - runStartTime) > 10 * 60 * 1000) {
-      boosts.all /= (1 + achievementBoosts['speedrunner'].value);
-    }
-  }
-  // Sound of Silence: only while muted
-  if (achievementBoosts['sound_of_silence'] && achievements[18]?.unlocked) {
-    if (!isMuted) boosts.all /= (1 + achievementBoosts['sound_of_silence'].value);
-  }
-  // Idle Idol: only while idle
-  if (achievementBoosts['idle_idol'] && achievements[15]?.unlocked) {
-    if (Date.now() - window._lastManualClickTime <= 10 * 60 * 1000) {
-      boosts.idle = 1;
-    }
-  }
-  return boosts;
-}
-
-// --- Apply boosts in getManualClickValue ---
-const baseGetManualClickValue = getManualClickValue;
-getManualClickValue = function() {
-  let value = baseGetManualClickValue();
-  const boosts = getAchievementBoosts();
-  value = value * boosts.manual * boosts.all;
-  return Math.floor(value);
-};
-
-// --- Apply boosts in getPPS ---
-const baseGetPPS = getPPS;
-getPPS = function() {
-  let pps = 0;
-  const boosts = getAchievementBoosts();
-  buildings.forEach(b => {
-    let mult = 1;
-    if (b.id === 'purple_farm') mult *= boosts.farm;
-    if (b.id === 'purple_factory') mult *= boosts.factory;
-    if (b.id === 'purple_mine') mult *= boosts.mine;
-    if (b.id === 'purple_lab') mult *= boosts.lab;
-    if (b.id === 'purple_portal') mult *= boosts.portal;
-    if (b.id === 'galactic_purpler') mult *= boosts.galactic;
-    mult *= boosts.building;
-    pps += b.tier * b.pps * mult;
-  });
-  pps += synergyBonus;
-  pps *= boosts.pps * boosts.all;
-  // Idle Idol: +5% PPS while idle
-  if (boosts.idle > 1 && (Date.now() - window._lastManualClickTime > 10 * 60 * 1000)) {
-    pps *= boosts.idle;
-  }
-  return Math.floor(pps);
-}; 
-
-// Initially disable the casino button
-showCasinoBtn.disabled = true;
-showCasinoBtn.classList.add('disabled');
-
-// Helper to check if player owns a Purple Casino
-function ownsPurpleCasino() {
-  const casino = buildings.find(b => b.id === 'purple_casino');
-  return casino && casino.tier > 0;
-}
-
-// Define checkCasinoUnlock before it is used or patched
-function checkCasinoUnlock() {
-  if (ownsPurpleCasino()) {
-    showCasinoBtn.disabled = false;
-    showCasinoBtn.classList.remove('disabled');
-    if (!window._casinoUnlocked) {
-      window._casinoUnlocked = true;
-    }
-  } else {
-    showCasinoBtn.disabled = true;
-    showCasinoBtn.classList.add('disabled');
-  }
-}
-
-// Patch renderSidebar to check casino unlock after building purchase
-const originalRenderSidebar = renderSidebar;
-renderSidebar = function() {
-  originalRenderSidebar.apply(this, arguments);
-  checkCasinoUnlock();
-};
-
-// --- Slot Machine Minigame ---
-const slotSymbols = [
-  { symbol: '🍇', name: 'Grapes', payout: 2 },
-  { symbol: '🍒', name: 'Cherries', payout: 3 },
-  { symbol: '🍋', name: 'Lemon', payout: 5 },
-  { symbol: '🔔', name: 'Bell', payout: 10 },
-  { symbol: '💎', name: 'Gem', payout: 25 },
-  { symbol: '👑', name: 'Crown', payout: 50 },
-  { symbol: '💜', name: 'Purple', payout: 100 },
-];
-
 function renderSlotMachineUI() {
   const casinoContent = document.getElementById('casino-content');
   casinoContent.innerHTML = `
@@ -2638,3 +2164,399 @@ function showOfflineGainsPopup(timeUsed, timeRemaining, purplesEarned, ppsUsed) 
     }
   }, 8000);
 }
+
+// --- Prestige & Tech Tree Buttons ---
+
+function showPrestigeButton() {
+  let btn = document.getElementById('prestige-btn');
+
+  const placeButton = () => {
+    const rect = scoreEl.getBoundingClientRect();
+    btn.style.position = 'fixed';
+    btn.style.left = rect.left + 'px';
+    btn.style.top = (rect.bottom + 8) + 'px'; // 8px gap below score
+    btn.style.width = rect.width + 'px';
+  };
+
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'prestige-btn';
+    btn.style.background = '#ffe066';
+    btn.style.color = '#3e0060';
+    btn.style.fontWeight = 'bold';
+    btn.style.fontSize = '1.1em';
+    btn.style.padding = '10px 16px';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '10px';
+    btn.style.boxShadow = '0 2px 8px #0005';
+    btn.style.zIndex = '150';
+    document.body.appendChild(btn);
+    window.addEventListener('resize', placeButton);
+
+    btn.onclick = () => {
+      if (confirm('Are you sure you want to prestige? This will reset all progress except Prestige Points and unlocked techs!')) {
+        // Calculate how many milestones have been passed
+        let milestonesPassed = 0;
+        let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+        let tempPurples = purples;
+        while (tempPurples >= milestone) {
+          milestonesPassed++;
+          milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + milestonesPassed);
+        }
+        if (milestonesPassed > 0) {
+          totalPrestigePointsEarned += milestonesPassed;
+          prestigePoints += milestonesPassed;
+        }
+
+        // Update milestone for next prestige
+        prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+
+        // Reset most game progress
+        purples = 0;
+        clickValue = 1;
+        totalPurplesEarned = 0;
+        totalClicks = 0;
+        totalAutoClicks = 0;
+        biggestSingleGain = 0;
+        runStartTime = Date.now();
+        synergyClicks = 0;
+        synergyBonus = 0;
+        manualUpgrades.forEach(u => { u.tier = 0; u.cost = u.baseCost; });
+        buildings.forEach(b => { b.tier = 0; b.cost = b.baseCost; });
+        // Tech tree levels remain but effects are applied elsewhere; save & refresh
+        saveGame();
+        location.reload();
+      }
+    };
+  }
+
+  placeButton();
+
+  // Update button label with dynamic info
+  let pointsEarned = 0;
+  let milestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
+  let tempPurples = purples;
+  while (tempPurples >= milestone) {
+    pointsEarned++;
+    milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + pointsEarned);
+  }
+  btn.textContent = `Prestige! (+${pointsEarned} PP, Next at ${formatNumber(milestone)} Purples)`;
+  btn.style.display = 'block';
+}
+
+function hidePrestigeButton() {
+  const btn = document.getElementById('prestige-btn');
+  if (btn) btn.style.display = 'none';
+}
+
+function checkPrestigeAvailability() {
+  if (purples >= prestigeMilestone) {
+    showPrestigeButton();
+  } else {
+    hidePrestigeButton();
+  }
+}
+
+function showTechTreeButton() {
+  let btn = document.getElementById('tech-tree-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'tech-tree-btn';
+    btn.title = 'Prestige Tech Tree';
+    btn.textContent = '🌳';
+    btn.style.fontSize = '1.6em';
+    btn.style.position = 'fixed';
+    btn.style.top = '20px';
+    btn.style.zIndex = '160';
+    btn.onclick = () => {
+      document.getElementById('tech-tree-modal').style.display = 'block';
+      setTimeout(renderTechTree, 0);
+    };
+    document.body.appendChild(btn);
+  }
+  
+  // Position dynamically with 8px gap from stats button
+  const statsBtn = document.getElementById('stats-btn');
+  if (statsBtn) {
+    const statsRect = statsBtn.getBoundingClientRect();
+    const statsRightPosition = window.innerWidth - statsRect.right;
+    const statsWidth = statsRect.width;
+    const techTreeRight = statsRightPosition + statsWidth + 8; // 8px gap
+    btn.style.right = techTreeRight + 'px';
+  } else {
+    // Fallback if stats button not found
+    btn.style.right = '120px';
+  }
+  
+  btn.classList.add('visible');
+  
+  // Add resize listener to update position
+  if (!window._techTreePositionListener) {
+    window.addEventListener('resize', () => {
+      if (btn && btn.classList.contains('visible')) {
+        const statsBtn = document.getElementById('stats-btn');
+        if (statsBtn) {
+          const statsRect = statsBtn.getBoundingClientRect();
+          const statsRightPosition = window.innerWidth - statsRect.right;
+          const statsWidth = statsRect.width;
+          const techTreeRight = statsRightPosition + statsWidth + 8;
+          btn.style.right = techTreeRight + 'px';
+        }
+      }
+    });
+    window._techTreePositionListener = true;
+  }
+}
+
+function hideTechTreeButton() {
+  const btn = document.getElementById('tech-tree-btn');
+  if (btn) btn.classList.remove('visible');
+}
+
+// Always show if player has any prestige points (earned or current)
+function checkTechTreeAvailability() {
+  if (prestigePoints > 0 || totalPrestigePointsEarned > 0) {
+    showTechTreeButton();
+  } else {
+    hideTechTreeButton();
+  }
+}
+
+// Helper: does player own a Purple Casino building?
+function ownsPurpleCasino() {
+  const casino = buildings.find(b => b.id === 'purple_casino');
+  return casino && casino.tier > 0;
+}
+
+// Enable/disable casino button based on ownership
+function checkCasinoUnlock() {
+  if (ownsPurpleCasino()) {
+    showCasinoBtn.disabled = false;
+    showCasinoBtn.classList.remove('disabled');
+    if (!window._casinoUnlocked) {
+      window._casinoUnlocked = true;
+    }
+  } else {
+    showCasinoBtn.disabled = true;
+    showCasinoBtn.classList.add('disabled');
+  }
+}
+
+// --- Particle Helper Functions (restored) ---
+
+function createClickParticles(x, y, value) {
+  if (!window.particleEffectsEnabled) return;
+
+  const particleCount = Math.max(12, Math.min(Math.floor(value / 10), 24));
+  const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf'];
+
+  for (let i = 0; i < particleCount; i++) {
+    const particle = document.createElement('div');
+    particle.style.position = 'fixed';
+    particle.style.left = x + 'px';
+    particle.style.top = y + 'px';
+    particle.style.width = '8px';
+    particle.style.height = '8px';
+    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+    particle.style.borderRadius = '50%';
+    particle.style.pointerEvents = 'none';
+    particle.style.zIndex = '999';
+    particle.style.transition = 'none';
+
+    document.body.appendChild(particle);
+
+    // Physics
+    const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.2;
+    const distance = 120 + Math.random() * 60;
+    const endX = x + Math.cos(angle) * distance;
+    const endY = y + Math.sin(angle) * distance;
+
+    const startTime = performance.now();
+    const duration = 0.6; // seconds
+
+    function animateParticle() {
+      const currentTime = performance.now();
+      const elapsed = (currentTime - startTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const currentX = x + (endX - x) * easeOut;
+      const currentY = y + (endY - y) * easeOut;
+      const currentScale = 1 - 0.5 * progress;
+      const currentOpacity = 1 - progress;
+
+      particle.style.transform = `translate(${currentX - x}px, ${currentY - y}px) scale(${currentScale})`;
+      particle.style.opacity = currentOpacity;
+
+      if (progress < 1) {
+        requestAnimationFrame(animateParticle);
+      } else {
+        particle.remove();
+      }
+    }
+
+    requestAnimationFrame(animateParticle);
+  }
+}
+
+function createUpgradeParticles(element) {
+  if (!window.particleEffectsEnabled) return;
+
+  const rect = element.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  for (let i = 0; i < 12; i++) {
+    const sparkle = document.createElement('div');
+    sparkle.style.position = 'fixed';
+    sparkle.style.left = centerX + 'px';
+    sparkle.style.top = centerY + 'px';
+    sparkle.style.width = '3px';
+    sparkle.style.height = '3px';
+    sparkle.style.background = '#ffe066';
+    sparkle.style.borderRadius = '50%';
+    sparkle.style.pointerEvents = 'none';
+    sparkle.style.zIndex = '999';
+    sparkle.style.transition = 'none';
+
+    document.body.appendChild(sparkle);
+
+    const angle = (Math.PI * 2 * i) / 12;
+    const distance = 40;
+    const endX = centerX + Math.cos(angle) * distance;
+    const endY = centerY + Math.sin(angle) * distance;
+
+    const startTime = performance.now();
+    const duration = 0.6;
+
+    function animateSparkle() {
+      const currentTime = performance.now();
+      const progress = Math.min((currentTime - startTime) / 1000 / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+      const currentX = centerX + (endX - centerX) * easeOut;
+      const currentY = centerY + (endY - centerY) * easeOut;
+      const currentOpacity = 1 - progress;
+
+      sparkle.style.transform = `translate(${currentX - centerX}px, ${currentY - centerY}px)`;
+      sparkle.style.opacity = currentOpacity;
+
+      if (progress < 1) {
+        requestAnimationFrame(animateSparkle);
+      } else {
+        sparkle.remove();
+      }
+    }
+
+    requestAnimationFrame(animateSparkle);
+  }
+}
+
+function createAchievementParticles() {
+  if (!window.particleEffectsEnabled) return;
+
+  // Delay so popup visible first
+  setTimeout(() => {
+    const colors = ['#ffe066', '#c77dff', '#9d4edd', '#7b2cbf', '#5a189a', '#3c096c'];
+    const screenCenterX = window.innerWidth / 2;
+    const popupBottomY = window.innerHeight - 50;
+    const popupWidth = 300;
+    const popupHeight = 120;
+    const popupLeftX = screenCenterX - popupWidth / 2;
+    const popupRightX = screenCenterX + popupWidth / 2;
+    const popupTopY = popupBottomY - popupHeight;
+
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.style.position = 'fixed';
+      confetti.style.width = '8px';
+      confetti.style.height = '8px';
+      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.pointerEvents = 'none';
+      confetti.style.zIndex = '999';
+      confetti.style.transition = 'none';
+
+      const side = Math.random() < 0.5 ? 'left' : 'right';
+      let startX, startY;
+      if (side === 'left') {
+        startX = popupLeftX + Math.random() * 20;
+        startY = popupTopY + Math.random() * popupHeight;
+      } else {
+        startX = popupRightX - Math.random() * 20;
+        startY = popupTopY + Math.random() * popupHeight;
+      }
+      confetti.style.left = startX + 'px';
+      confetti.style.top = startY + 'px';
+      document.body.appendChild(confetti);
+
+      const angle = 30 * (Math.PI / 180);
+      const speed = (100 + Math.random() * 100) * 2;
+      const direction = side === 'left' ? -1 : 1;
+      let vx = Math.cos(angle) * speed * direction;
+      let vy = -Math.sin(angle) * speed;
+      const gravity = 50;
+      let lastTime = performance.now();
+
+      let currentX = 0;
+      let currentY = 0;
+      
+      function animateConfetti() {
+        const now = performance.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+        vy += gravity * dt;
+        currentX += vx * dt;
+        currentY += vy * dt;
+        confetti.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${now * 0.4}deg)`;
+        const absoluteX = startX + currentX;
+        const absoluteY = startY + currentY;
+        if (absoluteY < window.innerHeight + 50 && absoluteX > -50 && absoluteX < window.innerWidth + 50) {
+          requestAnimationFrame(animateConfetti);
+        } else {
+          confetti.remove();
+        }
+      }
+
+      requestAnimationFrame(animateConfetti);
+    }
+  }, 500);
+}
+
+function createPPSParticles() {
+  if (!window.particleEffectsEnabled) return;
+
+  const particle = document.createElement('div');
+  particle.style.position = 'fixed';
+  particle.style.left = Math.random() * window.innerWidth + 'px';
+  particle.style.top = window.innerHeight + 'px';
+  particle.style.width = '2px';
+  particle.style.height = '2px';
+  particle.style.background = '#c77dff';
+  particle.style.borderRadius = '50%';
+  particle.style.pointerEvents = 'none';
+  particle.style.zIndex = '998';
+  particle.style.transition = 'none';
+
+  document.body.appendChild(particle);
+
+  const startTime = performance.now();
+  const duration = 2;
+  const startY = window.innerHeight;
+  const endY = -10;
+
+  function animate() {
+    const now = performance.now();
+    const progress = Math.min((now - startTime) / 1000 / duration, 1);
+    const currentY = startY + (endY - startY) * progress;
+    const currentOpacity = 1 - progress;
+    particle.style.transform = `translateY(${currentY - startY}px)`;
+    particle.style.opacity = currentOpacity;
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      particle.remove();
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
