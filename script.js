@@ -15,6 +15,7 @@ let totalPrestigePointsEarned = 0;
 let prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
 let offlineTimeBank = 0; // in seconds
 let lastActive = Date.now();
+let lastSavedPPS = 0; // Track PPS at the time of saving
 
 // Function to format numbers with space separators
 function formatNumber(num) {
@@ -622,6 +623,11 @@ window.screamAudioEnabled = true;
 window.numberFormat = 'separators'; // 'separators', 'scientific', 'abbreviated'
 
 function saveGame() {
+  // Capture current PPS before saving
+  lastSavedPPS = getPPS();
+  // Update lastActive to the exact save time
+  lastActive = Date.now();
+  
   const save = {
     purples,
     clickValue,
@@ -640,6 +646,7 @@ function saveGame() {
     totalPrestigePointsEarned,
     offlineTimeBank,
     lastActive,
+    lastSavedPPS,
     techTree: techTree.map(t => ({ level: t.level, unlocked: t.unlocked })),
     achievements,
     particleEffectsEnabled: window.particleEffectsEnabled,
@@ -697,6 +704,7 @@ function loadGame() {
     }
     offlineTimeBank = save.offlineTimeBank ?? 0;
     lastActive = save.lastActive ?? Date.now();
+    lastSavedPPS = save.lastSavedPPS ?? 0;
     
     // Load settings
     window.particleEffectsEnabled = save.particleEffectsEnabled ?? true;
@@ -715,16 +723,24 @@ function loadGame() {
     
     // Apply offline gains
     const now = Date.now();
-    const realSecondsAway = Math.max(0, Math.floor((now - lastActive) / 1000));
-    const timeDiff = Math.min(realSecondsAway, offlineTimeBank);
-    if (timeDiff > 0) {
-      const pps = getPPS();
-      const offlineGains = Math.floor(pps * timeDiff);
+    // Update lastActive to current time BEFORE calculating offline gains
+    // This ensures we only consider the actual time since the last save
+    const timeSinceLastSave = Math.max(0, Math.floor((now - lastActive) / 1000));
+    lastActive = now; // Update immediately
+    
+    // Only use the amount of offline time that corresponds to the actual time away
+    const timeToUse = Math.min(timeSinceLastSave, offlineTimeBank);
+    if (timeToUse > 0) {
+      // Use the PPS that was active when the game was last saved, not the current PPS
+      const pps = lastSavedPPS;
+      const offlineGains = Math.floor(pps * timeToUse);
       purples += offlineGains;
       totalPurplesEarned += offlineGains;
-      offlineTimeBank -= timeDiff;
+      offlineTimeBank -= timeToUse;
+      
+      // Show offline gains popup
+      showOfflineGainsPopup(timeToUse, offlineTimeBank, offlineGains, pps);
     }
-    lastActive = now;
     window.animationSpeed = save.animationSpeed ?? 1;
     window.fallingPurpleLimit = save.fallingPurpleLimit ?? 200;
     window.floatingTextEnabled = save.floatingTextEnabled ?? true;
@@ -899,6 +915,9 @@ function renderSidebar() {
             meowAudio.currentTime = 0;
             meowAudio.play();
           }
+          // Track building purchases for Building Boom achievement
+          if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
+          window._buildingBuyTimestamps.push(Date.now());
           updateScore();
           renderSidebar();
           saveGame();
@@ -1427,7 +1446,7 @@ function gameLoop(currentTime) {
     }
     
     // Offline time bank logic
-    offlineTimeBank = Math.min(offlineTimeBank + 10, 43200); // 12 hours max
+    offlineTimeBank = Math.min(offlineTimeBank + 1, 43200); // 12 hours max
     saveGame();
   }
   
@@ -1458,6 +1477,41 @@ setInterval(() => {
 }, 16); // Run at ~60fps for smooth animation
 
 window.addEventListener('beforeunload', saveGame);
+
+// Enhanced page unload handling for better save reliability
+window.addEventListener('beforeunload', (event) => {
+  // Force a synchronous save to ensure data is written
+  saveGame();
+  
+  // Optional: Show a confirmation dialog (modern browsers may ignore this)
+  // event.preventDefault();
+  // event.returnValue = '';
+});
+
+// Additional event listeners for different unload scenarios
+window.addEventListener('unload', () => {
+  // Final save attempt as the page is unloading
+  saveGame();
+});
+
+// Handle page visibility changes (when user switches tabs or minimizes browser)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Save when user switches away from the tab
+    saveGame();
+  }
+});
+
+// Handle page freeze (when browser freezes the page to save resources)
+document.addEventListener('freeze', () => {
+  saveGame();
+});
+
+// Handle page resume (when browser unfreezes the page)
+document.addEventListener('resume', () => {
+  // Update lastActive when page resumes
+  lastActive = Date.now();
+});
 
 showUpgradesBtn.addEventListener('click', () => {
   sidebarPage = 'upgrades';
@@ -2500,3 +2554,81 @@ closeCasino.addEventListener('click', () => {
 window.addEventListener('click', (e) => {
   if (e.target === casinoModal) casinoModal.style.display = 'none';
 });
+
+function showOfflineGainsPopup(timeUsed, timeRemaining, purplesEarned, ppsUsed) {
+  // Create popup element
+  const popup = document.createElement('div');
+  popup.style.position = 'fixed';
+  popup.style.top = '50%';
+  popup.style.left = '50%';
+  popup.style.transform = 'translate(-50%, -50%)';
+  popup.style.background = 'linear-gradient(135deg, #3e0060, #5a189a)';
+  popup.style.color = '#ffe066';
+  popup.style.padding = '24px 32px';
+  popup.style.borderRadius = '16px';
+  popup.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
+  popup.style.zIndex = '1001';
+  popup.style.fontSize = '1.1em';
+  popup.style.fontWeight = 'bold';
+  popup.style.textAlign = 'center';
+  popup.style.minWidth = '400px';
+  popup.style.maxWidth = '500px';
+  popup.style.opacity = '0';
+  popup.style.transition = 'opacity 0.5s ease-in-out';
+  popup.style.border = '2px solid #ffe066';
+  
+  // Format time values
+  const formatTimeDisplay = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+  
+  popup.innerHTML = `
+    <div style="margin-bottom: 16px; font-size: 1.3em;">⏰ Offline Gains</div>
+    <div style="margin-bottom: 12px; font-size: 1.1em; color: #c77dff;">Welcome back!</div>
+    <div style="text-align: left; font-weight: normal; line-height: 1.4;">
+      <div style="margin-bottom: 8px;"><b>Time Used:</b> ${formatTimeDisplay(timeUsed)}</div>
+      <div style="margin-bottom: 8px;"><b>Time Remaining:</b> ${formatTimeDisplay(timeRemaining)}</div>
+      <div style="margin-bottom: 8px;"><b>Purples Earned:</b> ${formatNumber(purplesEarned)}</div>
+      <div style="margin-bottom: 16px;"><b>PPS Used:</b> ${formatNumber(ppsUsed)}/sec</div>
+    </div>
+    <button id="offline-popup-close" style="background: #ffe066; color: #3e0060; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">OK</button>
+  `;
+  
+  document.body.appendChild(popup);
+  
+  // Fade in
+  setTimeout(() => {
+    popup.style.opacity = '1';
+  }, 100);
+  
+  // Add close button functionality
+  document.getElementById('offline-popup-close').addEventListener('click', () => {
+    popup.style.opacity = '0';
+    setTimeout(() => {
+      if (popup.parentNode) {
+        popup.parentNode.removeChild(popup);
+      }
+    }, 500);
+  });
+  
+  // Auto-close after 8 seconds
+  setTimeout(() => {
+    if (popup.parentNode) {
+      popup.style.opacity = '0';
+      setTimeout(() => {
+        if (popup.parentNode) {
+          popup.parentNode.removeChild(popup);
+        }
+      }, 500);
+    }
+  }, 8000);
+}
