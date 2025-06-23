@@ -385,7 +385,7 @@ const achievements = [
   { id: 'idle_idol', name: 'Idle Idol', desc: 'Earn 1,000,000 Purples while idle (no clicks for 10 minutes).', unlocked: false },
   { id: 'upgrade_maxed', name: 'Upgrade Maxed', desc: 'Max out all upgrades.', unlocked: false },
   { id: 'building_boom', name: 'Building Boom', desc: 'Buy 10 buildings in one second.', unlocked: false },
-  { id: 'sound_of_silence', name: 'Sound of Silence', desc: 'Play muted for 10 minutes straight.', unlocked: false },
+  { id: 'sound_of_silence', name: 'Sound of Silence', desc: 'Play fully muted for 10 minutes straight.', unlocked: false },
   { id: 'speedrunner', name: 'Speedrunner', desc: 'Reach 1,000,000 Purples in under 5 minutes.', unlocked: false },
   { id: 'loyal_clicker', name: 'Loyal Clicker', desc: 'Play for 7 days total.', unlocked: false },
 ];
@@ -604,6 +604,7 @@ showMainBtn.addEventListener('click', () => {
 });
 
 showOfflineBtn.addEventListener('click', () => {
+  console.log("DEBUG: Offline button clicked");
   sidebarPage = 'offline';
   showOfflineBtn.classList.add('active');
   showMainBtn.classList.remove('active');
@@ -912,6 +913,8 @@ function saveGame() {
     offlineTimeBank,
     lastActive,
     lastSavedPPS,
+    offlineUpgrades: offlineUpgrades.map(u => ({ tier: u.tier, cost: u.cost })),
+    offlineBuildings: offlineBuildings.map(b => ({ tier: b.tier, cost: b.cost })),
     techTree: techTree.map(t => ({ level: t.level, unlocked: t.unlocked })),
     achievements,
     particleEffectsEnabled: window.particleEffectsEnabled,
@@ -974,6 +977,24 @@ function loadGame() {
     lastActive = save.lastActive ?? Date.now();
     lastSavedPPS = save.lastSavedPPS ?? 0;
     
+    // Load offline upgrades and buildings
+    if (save.offlineUpgrades) {
+      save.offlineUpgrades.forEach((saved, i) => {
+        if (offlineUpgrades[i]) {
+          offlineUpgrades[i].tier = saved.tier;
+          offlineUpgrades[i].cost = saved.cost;
+        }
+      });
+    }
+    if (save.offlineBuildings) {
+      save.offlineBuildings.forEach((saved, i) => {
+        if (offlineBuildings[i]) {
+          offlineBuildings[i].tier = saved.tier;
+          offlineBuildings[i].cost = saved.cost;
+        }
+      });
+    }
+    
     // Load settings
     window.particleEffectsEnabled = save.particleEffectsEnabled ?? true;
     const savedVolume = save.volume ?? 1;
@@ -1000,7 +1021,11 @@ function loadGame() {
     const timeToUse = Math.min(timeSinceLastSave, offlineTimeBank);
     if (timeToUse > 0) {
       // Use the PPS that was active when the game was last saved, not the current PPS
-      const pps = lastSavedPPS;
+      let pps = lastSavedPPS;
+      
+      // Apply offline upgrade effects
+      pps = applyOfflineUpgradeEffects(pps);
+      
       const offlineGains = Math.floor(pps * timeToUse);
       purples += offlineGains;
       totalPurplesEarned += offlineGains;
@@ -1059,10 +1084,12 @@ function updateSidebarTabPurchasable() {
 }
 
 function renderSidebar() {
+  console.log("DEBUG: renderSidebar called, sidebarPage:", sidebarPage);
   // Show/hide sidebars based on current page
   mainSidebar.style.display = (sidebarPage === 'main') ? 'flex' : 'none';
   upgradesSidebar.style.display = 'none';
   offlineUpgradeSidebar.style.display = (sidebarPage === 'offline') ? 'flex' : 'none';
+  console.log("DEBUG: offlineUpgradeSidebar display set to:", offlineUpgradeSidebar.style.display);
   
   if (sidebarPage === 'main') {
     renderMainSidebar();
@@ -1196,6 +1223,7 @@ function renderMainSidebar() {
 
 function renderOfflineSidebar() {
   offlineUpgradeSidebar.innerHTML = '';
+  console.log("DEBUG: Rendering offline sidebar, upgrades count:", offlineUpgrades.length);
   
   offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin-bottom:18px;">Offline Upgrades</h3>';
   offlineUpgrades.forEach((upgrade) => {
@@ -1208,7 +1236,9 @@ function renderOfflineSidebar() {
       <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
     `;
     btn.onclick = () => {
+      console.log("DEBUG: Offline upgrade clicked:", upgrade.name, "Cost:", upgrade.cost, "Purples:", purples);
       if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
+        console.log("DEBUG: Purchase allowed, purchasing...");
         purples -= upgrade.cost;
         upgrade.tier++;
         if (typeof upgrade.effect === 'function') upgrade.effect();
@@ -1265,7 +1295,15 @@ function renderOfflineSidebar() {
 
 function createFallingPurple() {
   const img = document.createElement('img');
-  img.src = 'images/purple.png';
+  // 1 in 10000 chance for goblin_arne.png, 30% chance for purrrpet.png, 70% chance for purple.png
+  const rand = Math.random();
+  if (rand < 0.0001) {
+    img.src = 'images/goblin_arne.png';
+  } else if (rand < 0.3001) { // 30% of remaining 99.99%
+    img.src = 'images/purrrpet.png';
+  } else {
+    img.src = 'images/purple.png';
+  }
   img.className = 'falling-purple';
 
   // Initial position and velocity
@@ -1390,6 +1428,71 @@ function getAchievementBoosts() {
     }
   });
   return boosts;
+}
+
+// Offline upgrade effects helper functions
+function getOfflineTimeAccumulationRate() {
+  // Base rate: 1 second per second
+  let rate = 1;
+  
+  // Offline Booster: +2s/sec per tier
+  const offlineBooster = offlineUpgrades.find(u => u.id === 'offline_booster');
+  if (offlineBooster) {
+    rate += offlineBooster.tier * 2;
+  }
+  
+  return rate;
+}
+
+function getMaxOfflineTimeBank() {
+  // Base cap: 12 hours (43200 seconds)
+  let maxBank = 43200;
+  
+  // Time Capsule: +1 hour per tier
+  const timeCapsule = offlineUpgrades.find(u => u.id === 'time_capsule');
+  if (timeCapsule) {
+    maxBank += timeCapsule.tier * 3600; // 3600 seconds = 1 hour
+  }
+  
+  // Chrono Vault: +1 hour per tier
+  const chronoVault = offlineBuildings.find(b => b.id === 'chrono_vault');
+  if (chronoVault) {
+    maxBank += chronoVault.tier * 3600;
+  }
+  
+  return maxBank;
+}
+
+function applyOfflineUpgradeEffects(basePPS) {
+  let pps = basePPS;
+  
+  // Efficient Automation: +25% effectiveness
+  const efficientAutomation = offlineUpgrades.find(u => u.id === 'efficient_automation');
+  if (efficientAutomation && efficientAutomation.tier > 0) {
+    pps *= 1.25;
+  }
+  
+  // Offline Magnet: +10% per tier of PPS counted for offline gains
+  const offlineMagnet = offlineUpgrades.find(u => u.id === 'offline_magnet');
+  if (offlineMagnet) {
+    pps *= (1 + 0.10 * offlineMagnet.tier);
+  }
+  
+  // Offline Synergy: Include synergy bonus in offline gains
+  const offlineSynergy = offlineUpgrades.find(u => u.id === 'offline_synergy');
+  if (offlineSynergy && offlineSynergy.tier > 0 && synergyBonus > 0) {
+    // Add a portion of the synergy bonus based on upgrade tier
+    const synergyContribution = synergyBonus * 0.1 * offlineSynergy.tier; // 10% per tier
+    pps += synergyContribution;
+  }
+  
+  // Sleep Lab: +10% per tier to all offline gains
+  const sleepLab = offlineBuildings.find(b => b.id === 'sleep_lab');
+  if (sleepLab) {
+    pps *= (1 + 0.10 * sleepLab.tier);
+  }
+  
+  return pps;
 }
 
 // Tech tree renderer
@@ -1810,24 +1913,25 @@ function checkAchievements() {
       }
     }
   }
-  // Prestige! (first prestige)
-  if (!achievements[14].unlocked && totalPrestigePointsEarned > 0) {
-    achievements[14].unlocked = true;
-    showAchievementPopup(achievements[14]);
-  }
+  // Prestige! (first prestige) - This is handled in prestige button now
+  // if (!achievements[15].unlocked && totalPrestigePointsEarned > 0) {
+  //   achievements[15].unlocked = true;
+  //   showAchievementPopup(achievements[15]);
+  // }
   // Idle Idol (1,000,000 Purples while idle for 10 min)
-  if (!achievements[15].unlocked) {
-    if (!window._idleStart) window._idleStart = Date.now();
+  if (!achievements[16].unlocked) {
+    if (!window._lastManualClickTime) window._lastManualClickTime = Date.now();
     if (!window._idlePurples) window._idlePurples = 0;
     if (Date.now() - window._lastManualClickTime > 10 * 60 * 1000) {
       window._idlePurples += getPPS();
+      console.log("DEBUG: Idle Idol - Idle purples:", window._idlePurples, "Target: 1000000");
       if (window._idlePurples >= 1000000) {
-        achievements[15].unlocked = true;
-        showAchievementPopup(achievements[15]);
+        achievements[16].unlocked = true;
+        console.log("DEBUG: Idle Idol achievement unlocked!");
+        showAchievementPopup(achievements[16]);
       }
     } else {
       window._idlePurples = 0;
-      window._idleStart = Date.now();
     }
   }
   // Upgrade Maxed (all upgrades maxed)
@@ -1931,6 +2035,7 @@ clickerImg.addEventListener('click', (e) => {
     return;
   }
   lastManualClickTime = now;
+  window._lastManualClickTime = now;
   
   // Track manual clicks for CPS calculation
   manualClickTimestamps.push(now);
@@ -2081,8 +2186,9 @@ function gameLoop(currentTime) {
       updateSidebarTabPurchasable();
     }
     
-    // Offline time bank logic
-    offlineTimeBank = Math.min(offlineTimeBank + 1, 43200); // 12 hours max
+    // Offline time bank logic - apply offline booster upgrade
+    const offlineAccumulationRate = getOfflineTimeAccumulationRate();
+    offlineTimeBank = Math.min(offlineTimeBank + offlineAccumulationRate, getMaxOfflineTimeBank()); // Max based on Time Capsule upgrade
     saveGame();
   }
   
@@ -2494,6 +2600,15 @@ function showPrestigeButton() {
           milestonesPassed++;
           milestone = 100000 * Math.pow(3, totalPrestigePointsEarned + milestonesPassed);
         }
+        // ALWAYS unlock Prestige! achievement on first prestige, regardless of points earned
+        if (!achievements[15].unlocked) {
+          achievements[15].unlocked = true;
+          console.log("DEBUG: Prestige achievement unlocked!");
+          showAchievementPopup(achievements[15]);
+          // Save immediately to ensure achievement persists through reload
+          saveGame();
+        }
+        
         if (milestonesPassed > 0) {
           totalPrestigePointsEarned += milestonesPassed;
           prestigePoints += milestonesPassed;
