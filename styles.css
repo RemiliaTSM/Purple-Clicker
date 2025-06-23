@@ -1,5 +1,9 @@
 body {
-  background: #2d0036;
+  /* Background image with dark-purple overlay */
+  background: linear-gradient(rgba(62,0,96,0.7), rgba(62,0,96,0.7)), url('images/bg.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
   color: #fff;
   font-family: 'Segoe UI', Arial, sans-serif;
   margin: 0;
