@@ -324,7 +324,7 @@ These upgrades and buildings can be unlocked at different stages and provide mea
 ### Gameplay Settings
 - [ ] **Auto-Save Frequency:** How often the game saves (every 10s, 30s, 1min, 5min)
 - [ ] **Confirmation Dialogs:** Toggle confirmation prompts for expensive purchases
-- [ ] **Hide Maxed Upgrades:** Toggle to hide/show fully upgraded items (already implemented)
+- [x] **Hide Maxed Upgrades:** Toggle to hide/show fully upgraded items (already implemented)
 - [ ] **Number Format:** Choose between scientific notation, abbreviations (1K, 1M), or full numbers
 - [ ] **Decimal Places:** Control how many decimal places to show in numbers
 - [ ] **Click Cooldown:** Adjust minimum time between clicks (for accessibility)

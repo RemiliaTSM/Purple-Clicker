@@ -43,6 +43,30 @@ let currentPPS = 0;
 let manualClicksLastSecond = 0;
 let manualClickTimestamps = [];
 
+// Performance tracking variables
+let performanceMetricsEnabled = false;
+let frameCount = 0;
+let lastFPSTime = Date.now();
+let currentFPS = 0;
+let memoryUsage = 0;
+let gameLoopTime = 0;
+let renderTime = 0;
+let averageFrameTime = 0;
+let particleCount = 0;
+let frameTimes = [];
+const maxFrameTimesSamples = 60; // Track last 60 frames
+
+// Slot machine symbols and payouts
+const slotSymbols = [
+  { symbol: '💜', payout: 100 },
+  { symbol: '👑', payout: 50 },
+  { symbol: '💎', payout: 25 },
+  { symbol: '🔔', payout: 10 },
+  { symbol: '🍋', payout: 5 },
+  { symbol: '🍒', payout: 3 },
+  { symbol: '🍇', payout: 2 }
+];
+
 const scoreEl = document.getElementById('score');
 const clickerImgBtn = document.getElementById('clicker-img-btn');
 const upgradesSidebar = document.getElementById('upgrade-sidebar');
@@ -733,7 +757,8 @@ function saveGame() {
     screenShakeEnabled: window.screenShakeEnabled,
     screamAudioEnabled: window.screamAudioEnabled,
     numberFormat: window.numberFormat,
-    savedFarmPositions: savedFarmPositions
+    savedFarmPositions: savedFarmPositions,
+    performanceMetricsEnabled: performanceMetricsEnabled
   };
   localStorage.setItem('purpleClickerSave', JSON.stringify(save));
 }
@@ -825,6 +850,7 @@ function loadGame() {
     window.screamAudioEnabled = save.screamAudioEnabled ?? true;
     window.numberFormat = save.numberFormat ?? 'separators';
     savedFarmPositions = save.savedFarmPositions ?? [];
+    performanceMetricsEnabled = save.performanceMetricsEnabled ?? false;
     // inside loadGame before saveGame();
     // Need to rebuild farm images from saved positions
     rebuildFarmDecorFromSave();
@@ -876,14 +902,6 @@ function renderSidebar() {
   offlineUpgradeSidebar.style.display = (sidebarPage === 'offline') ? 'flex' : 'none';
   offlineUpgradeSidebar.innerHTML = '';
   if (sidebarPage === 'upgrades') {
-    // Add hide maxed toggle
-    upgradesSidebar.innerHTML += `<label style='display:block;margin-bottom:10px;text-align:center;'><input type='checkbox' id='hide-maxed-upgrades' ${hideMaxedUpgrades ? 'checked' : ''}/> Hide maxed upgrades</label>`;
-    const hideToggle = setTimeout(() => {
-      document.getElementById('hide-maxed-upgrades').addEventListener('change', (e) => {
-        hideMaxedUpgrades = e.target.checked;
-        renderSidebar();
-      });
-    }, 0);
     upgradesSidebar.innerHTML += '<h3 style="color:#c77dff;text-align:center;margin-bottom:18px;">Upgrades</h3>';
     manualUpgrades.forEach((upgrade) => {
       // Hide maxed upgrades if toggle is on
@@ -1234,6 +1252,8 @@ settingsBtn.addEventListener('click', () => {
   document.getElementById('screen-shake-toggle').checked = window.screenShakeEnabled;
   document.getElementById('scream-audio-toggle').checked = window.screamAudioEnabled;
   document.getElementById('number-format-select').value = window.numberFormat;
+  document.getElementById('hide-maxed-upgrades-setting').checked = hideMaxedUpgrades;
+  document.getElementById('performance-metrics-toggle').checked = performanceMetricsEnabled;
 });
 
 closeSettings.addEventListener('click', () => {
@@ -1325,6 +1345,15 @@ document.getElementById('number-format-select').addEventListener('change', (e) =
   if (statsModal && statsModal.style.display === 'block') renderStats();
   saveGame();
 });
+document.getElementById('hide-maxed-upgrades-setting').addEventListener('change', (e) => {
+  hideMaxedUpgrades = e.target.checked;
+  renderSidebar();
+  saveGame();
+});
+document.getElementById('performance-metrics-toggle').addEventListener('change', (e) => {
+  performanceMetricsEnabled = e.target.checked;
+  saveGame();
+});
 
 function formatTime(ms) {
   const sec = Math.floor(ms / 1000) % 60;
@@ -1383,6 +1412,21 @@ function renderStats() {
     .join('');
   if (boostList) {
     statsContent.innerHTML += `<br><h3 style='margin-top:18px;color:#ffe066;'>Achievement Boosts</h3><ul style='list-style:none;padding:0;'>${boostList}</ul>`;
+  }
+  
+  // Add performance metrics if enabled
+  if (performanceMetricsEnabled) {
+    statsContent.innerHTML += `
+      <br><h3 style='margin-top:18px;color:#ffe066;'>Performance Metrics</h3>
+      <b>FPS:</b> ${currentFPS}<br>
+      <b>Average Frame Time:</b> ${averageFrameTime.toFixed(2)}ms<br>
+      <b>Game Loop Time:</b> ${gameLoopTime.toFixed(2)}ms<br>
+      <b>Active Particles:</b> ${particleCount}<br>
+      ${memoryUsage > 0 ? `<b>Memory Usage:</b> ${memoryUsage}MB<br>` : ''}
+      <div style='margin-top:8px;font-size:0.9em;color:#ccc;font-style:italic;'>
+        Performance metrics can be toggled in Settings → User Interface
+      </div>
+    `;
   }
 }
 
@@ -1722,8 +1766,36 @@ let lastSecondUpdate = Date.now();
 let fractionalPurples = 0; // Track fractional purples
 
 function gameLoop(currentTime) {
+  const gameLoopStart = performance.now();
   const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
   lastFrameTime = currentTime;
+  
+  // Performance tracking
+  if (performanceMetricsEnabled) {
+    frameCount++;
+    
+    // Update FPS every second
+    if (currentTime - lastFPSTime >= 1000) {
+      currentFPS = Math.round((frameCount * 1000) / (currentTime - lastFPSTime));
+      frameCount = 0;
+      lastFPSTime = currentTime;
+      
+      // Update memory usage if available
+      if (performance.memory) {
+        memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1048576); // Convert to MB
+      }
+      
+      // Count particles
+      particleCount = document.querySelectorAll('.falling-purple, .click-particle, .upgrade-particle, .achievement-particle, .pps-particle').length;
+    }
+    
+    // Track frame times for average calculation
+    frameTimes.push(deltaTime * 1000); // Convert to ms
+    if (frameTimes.length > maxFrameTimesSamples) {
+      frameTimes.shift();
+    }
+    averageFrameTime = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+  }
   
   const pps = getPPS();
   if (pps > 0) {
@@ -1767,6 +1839,11 @@ function gameLoop(currentTime) {
     // Offline time bank logic
     offlineTimeBank = Math.min(offlineTimeBank + 1, 43200); // 12 hours max
     saveGame();
+  }
+  
+  // End performance tracking
+  if (performanceMetricsEnabled) {
+    gameLoopTime = performance.now() - gameLoopStart;
   }
   
   requestAnimationFrame(gameLoop);
