@@ -70,13 +70,15 @@ const slotSymbols = [
 const scoreEl = document.getElementById('score');
 const clickerImgBtn = document.getElementById('clicker-img-btn');
 const upgradesSidebar = document.getElementById('upgrade-sidebar');
+const mainSidebar = document.getElementById('main-sidebar');
+const upgradeGrid = document.getElementById('upgrade-grid');
+const buildingList = document.getElementById('building-list');
 const fallingContainer = document.getElementById('falling-container');
 const statsBtn = document.getElementById('stats-btn');
 const statsModal = document.getElementById('stats-modal');
 const closeStats = document.getElementById('close-stats');
 const statsContent = document.getElementById('stats-content');
-const showUpgradesBtn = document.getElementById('show-upgrades');
-const showBuildingsBtn = document.getElementById('show-buildings');
+const showMainBtn = document.getElementById('show-main');
 const clickerImg = document.getElementById('clicker-img');
 const showCasinoBtn = document.getElementById('show-casino');
 const casinoModal = document.getElementById('casino-modal');
@@ -109,6 +111,7 @@ const manualUpgrades = [
     id: 'stronger_click',
     name: 'Stronger Clicks',
     description: '+1 Purple per click per tier',
+    icon: '👆',
     baseCost: 20,
     cost: 20,
     tier: 0,
@@ -120,6 +123,7 @@ const manualUpgrades = [
     id: 'double_tap',
     name: 'Double Tap',
     description: 'Doubles your current click value (single-buy)',
+    icon: '👆👆',
     baseCost: 500,
     cost: 500,
     tier: 0,
@@ -131,6 +135,7 @@ const manualUpgrades = [
     id: 'purple_surge',
     name: 'Purple Surge',
     description: '+5% click value per tier (max 10)',
+    icon: '⚡',
     baseCost: 1000,
     cost: 1000,
     tier: 0,
@@ -142,6 +147,7 @@ const manualUpgrades = [
     id: 'critical_clicks',
     name: 'Critical Clicks',
     description: '5% chance for clicks to be worth 10x (single-buy)',
+    icon: '💥',
     baseCost: 2500,
     cost: 2500,
     tier: 0,
@@ -153,6 +159,7 @@ const manualUpgrades = [
     id: 'purple_multiplier',
     name: 'Purple Multiplier',
     description: '+10% to all manual click gains per tier (max 10)',
+    icon: '✖️',
     baseCost: 5000,
     cost: 5000,
     tier: 0,
@@ -164,6 +171,7 @@ const manualUpgrades = [
     id: 'clickstorm',
     name: 'Clickstorm',
     description: '+2 clicks/sec for 10s after every 50 clicks (up to 5 tiers, increases duration)',
+    icon: '🌪️',
     baseCost: 20000,
     cost: 20000,
     tier: 0,
@@ -175,6 +183,7 @@ const manualUpgrades = [
     id: 'golden_touch',
     name: 'Golden Touch',
     description: 'Every 100th click gives 100x Purples (single-buy)',
+    icon: '✨',
     baseCost: 50000,
     cost: 50000,
     tier: 0,
@@ -186,6 +195,7 @@ const manualUpgrades = [
     id: 'efficient_clicking',
     name: 'Efficient Clicking',
     description: 'Reduces click cooldown by 10% per tier (up to 5 tiers)',
+    icon: '⏱️',
     baseCost: 15000,
     cost: 15000,
     tier: 0,
@@ -197,6 +207,7 @@ const manualUpgrades = [
     id: 'click_combo',
     name: 'Click Combo',
     description: 'Each consecutive click within 1s increases click value by 1% (up to 20% per tier)',
+    icon: '🔥',
     baseCost: 25000,
     cost: 25000,
     tier: 0,
@@ -208,6 +219,7 @@ const manualUpgrades = [
     id: 'finger_of_fate',
     name: 'Finger of Fate',
     description: 'Next click is guaranteed to be a critical click (single-buy)',
+    icon: '🔮',
     baseCost: 100000,
     cost: 100000,
     tier: 0,
@@ -219,6 +231,7 @@ const manualUpgrades = [
     id: 'click_magnet',
     name: 'Click Magnet',
     description: '+1% chance per tier for double Purples per click (up to 10 tiers)',
+    icon: '🧲',
     baseCost: 30000,
     cost: 30000,
     tier: 0,
@@ -230,6 +243,7 @@ const manualUpgrades = [
     id: 'purple_avalanche',
     name: 'Purple Avalanche',
     description: 'For 30s, every click drops 5 extra falling purples (single-buy)',
+    icon: '🌨️',
     baseCost: 200000,
     cost: 200000,
     tier: 0,
@@ -241,6 +255,7 @@ const manualUpgrades = [
     id: 'auto_click_synergy',
     name: 'Auto-Click Synergy',
     description: 'For every 10 manual clicks, gain +1 auto-click per second per tier (permanent, stacks with other auto-clickers)',
+    icon: '🔗',
     baseCost: 40000,
     cost: 40000,
     tier: 0,
@@ -256,81 +271,97 @@ const buildings = [
     id: 'auto_clicker',
     name: 'Auto Clicker',
     description: '+1 Purple per second per tier',
+    icon: '🖱️',
     baseCost: 50,
     cost: 50,
     tier: 0,
     pps: 1,
     costGrowth: 1.5,
+    totalProduced: 0,
   },
   {
     id: 'purple_farm',
     name: 'Purple Farm',
     description: '+10 Purples per second per tier',
+    icon: '🚜',
     baseCost: 1000,
     cost: 1000,
     tier: 0,
     pps: 10,
     costGrowth: 1.6,
+    totalProduced: 0,
   },
   {
     id: 'purple_casino',
     name: 'Purple Casino',
     description: '+40 Purples per second per tier. Unlocks casino minigames.',
+    icon: '🎰',
     baseCost: 8000,
     cost: 8000,
     tier: 0,
     pps: 40,
     costGrowth: 1.65,
+    totalProduced: 0,
   },
   {
     id: 'purple_factory',
     name: 'Purple Factory',
     description: '+100 Purples per second per tier',
+    icon: '🏭',
     baseCost: 20000,
     cost: 20000,
     tier: 0,
     pps: 100,
     costGrowth: 1.7,
+    totalProduced: 0,
   },
   {
     id: 'purple_mine',
     name: 'Purple Mine',
     description: '+1,000 Purples per second per tier',
+    icon: '⛏️',
     baseCost: 300000,
     cost: 300000,
     tier: 0,
     pps: 1000,
     costGrowth: 1.8,
+    totalProduced: 0,
   },
   {
     id: 'purple_lab',
     name: 'Purple Lab',
     description: '+10,000 Purples per second per tier',
+    icon: '🧪',
     baseCost: 10000000,
     cost: 10000000,
     tier: 0,
     pps: 10000,
     costGrowth: 2.0,
+    totalProduced: 0,
   },
   {
     id: 'purple_portal',
     name: 'Purple Portal',
     description: '+100,000 Purples per second per tier',
+    icon: '🌌',
     baseCost: 250000000,
     cost: 250000000,
     tier: 0,
     pps: 100000,
     costGrowth: 2.2,
+    totalProduced: 0,
   },
   {
     id: 'galactic_purpler',
     name: 'Galactic Purpler',
     description: '+1,000,000 Purples per second per tier',
+    icon: '🚀',
     baseCost: 5000000000,
     cost: 5000000000,
     tier: 0,
     pps: 1000000,
     costGrowth: 2.5,
+    totalProduced: 0,
   },
 ];
 
@@ -441,16 +472,150 @@ const offlineBuildings = [
   },
 ];
 
-let sidebarPage = 'upgrades';
+let sidebarPage = 'main';
 const showOfflineBtn = document.getElementById('show-offline');
 const offlineUpgradeSidebar = document.getElementById('offline-upgrade-sidebar');
+
+// Tooltip system
+let currentTooltip = null;
+
+// Helper functions for new sidebar
+function sortUpgradesByPrice() {
+  return [...manualUpgrades]
+    .filter(upgrade => !hideMaxedUpgrades || !upgrade.maxTier || upgrade.tier < upgrade.maxTier)
+    .sort((a, b) => a.cost - b.cost);
+}
+
+function getBuildingVisibility() {
+  const visibleBuildings = [];
+  let unaffordableCount = 0;
+  
+  for (const building of buildings) {
+    if (building.tier > 0 || purples >= building.cost) {
+      // Owned or affordable - always show
+      visibleBuildings.push({ building, obscured: false });
+    } else if (unaffordableCount < 2) {
+      // Next 2 tiers of unaffordable buildings - show obscured
+      visibleBuildings.push({ building, obscured: true });
+      unaffordableCount++;
+    }
+  }
+  
+  return visibleBuildings;
+}
+
+function obscureBuildingName(name) {
+  return name.replace(/[a-zA-Z]/g, '?');
+}
+
+function calculateBuildingPercentage(building) {
+  const totalPPS = getPPS();
+  if (totalPPS === 0) return 0;
+  const buildingPPS = building.tier * building.pps;
+  return (buildingPPS / totalPPS) * 100;
+}
+
+function generateUpgradeTooltip(upgrade) {
+  return `
+    <div class="tooltip-title">${upgrade.name}</div>
+    <div class="tooltip-cost">Cost: ${formatNumber(upgrade.cost)} Purples</div>
+    <div class="tooltip-description">${upgrade.description}</div>
+  `;
+}
+
+function generateBuildingTooltip(building, obscured = false) {
+  if (obscured) {
+    return `
+      <div class="tooltip-title">${obscureBuildingName(building.name)}</div>
+      <div class="tooltip-cost">Cost: ${formatNumber(building.cost)} Purples</div>
+      <div class="tooltip-description">???</div>
+    `;
+  }
+  
+  const ppsPerBuilding = building.pps;
+  const owned = building.tier;
+  const totalPPS = owned * ppsPerBuilding;
+  const percentage = calculateBuildingPercentage(building);
+  const totalProduced = building.totalProduced || 0;
+  
+  return `
+    <div class="tooltip-title">${building.name}</div>
+    <div class="tooltip-description">${building.description}</div>
+    <div class="tooltip-stats">
+      <div class="tooltip-stat-line tooltip-production">Each ${building.name} produces ${formatNumber(ppsPerBuilding)} purples per second.</div>
+      <div class="tooltip-stat-line tooltip-production">${owned} ${building.name} producing ${formatNumber(totalPPS)} purples per second (${percentage.toFixed(1)}% of total PpS)</div>
+      <div class="tooltip-stat-line">${formatNumber(totalProduced)} purples produced so far</div>
+    </div>
+  `;
+}
+
+function createTooltip(content, x, y) {
+  removeTooltip();
+  
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  tooltip.innerHTML = content;
+  document.body.appendChild(tooltip);
+  
+  // Position tooltip
+  const rect = tooltip.getBoundingClientRect();
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  
+  // Adjust position to keep tooltip on screen
+  let left = x + 15;
+  let top = y - 10;
+  
+  if (left + rect.width > windowWidth) {
+    left = x - rect.width - 15;
+  }
+  
+  if (top + rect.height > windowHeight) {
+    top = y - rect.height + 10;
+  }
+  
+  if (left < 0) left = 10;
+  if (top < 0) top = 10;
+  
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = top + 'px';
+  
+  // Show tooltip with animation
+  setTimeout(() => tooltip.classList.add('visible'), 10);
+  
+  currentTooltip = tooltip;
+  return tooltip;
+}
+
+function removeTooltip() {
+  if (currentTooltip) {
+    currentTooltip.remove();
+    currentTooltip = null;
+  }
+}
+
+// Sidebar event listeners
+showMainBtn.addEventListener('click', () => {
+  sidebarPage = 'main';
+  showMainBtn.classList.add('active');
+  showOfflineBtn.classList.remove('active');
+  showCasinoBtn.classList.remove('active');
+  renderSidebar();
+});
 
 showOfflineBtn.addEventListener('click', () => {
   sidebarPage = 'offline';
   showOfflineBtn.classList.add('active');
-  showUpgradesBtn.classList.remove('active');
-  showBuildingsBtn.classList.remove('active');
+  showMainBtn.classList.remove('active');
+  showCasinoBtn.classList.remove('active');
   renderSidebar();
+});
+
+showCasinoBtn.addEventListener('click', () => {
+  if (ownsPurpleCasino()) {
+    casinoModal.style.display = 'block';
+    renderSlotMachineUI();
+  }
 });
 
 // Prestige Tech Tree (branching, dependencies, multi-level nodes)
@@ -737,7 +902,7 @@ function saveGame() {
     biggestSingleGain,
     runStartTime,
     manualUpgrades: manualUpgrades.map(u => ({ tier: u.tier, cost: u.cost })),
-    buildings: buildings.map(b => ({ tier: b.tier, cost: b.cost })),
+    buildings: buildings.map(b => ({ tier: b.tier, cost: b.cost, totalProduced: b.totalProduced })),
     isMuted,
     hideMaxedUpgrades,
     synergyClicks,
@@ -783,6 +948,7 @@ function loadGame() {
       save.buildings.forEach((saved, i) => {
         buildings[i].tier = saved.tier;
         buildings[i].cost = saved.cost;
+        buildings[i].totalProduced = saved.totalProduced || 0;
       });
     }
     isMuted = save.isMuted ?? false;
@@ -869,23 +1035,19 @@ function updateScore() {
 }
 
 function updateSidebarTabPurchasable() {
-  // Upgrades
+  // Main tab (upgrades and buildings combined)
   const canBuyUpgrade = manualUpgrades.some(u => {
     if (hideMaxedUpgrades && u.maxTier && u.tier >= u.maxTier) return false;
     return purples >= u.cost && (!u.maxTier || u.tier < u.maxTier);
   });
-  if (canBuyUpgrade) {
-    showUpgradesBtn.classList.add('purchasable');
-  } else {
-    showUpgradesBtn.classList.remove('purchasable');
-  }
-  // Buildings
   const canBuyBuilding = buildings.some(b => purples >= b.cost);
-  if (canBuyBuilding) {
-    showBuildingsBtn.classList.add('purchasable');
+  
+  if (canBuyUpgrade || canBuyBuilding) {
+    showMainBtn.classList.add('purchasable');
   } else {
-    showBuildingsBtn.classList.remove('purchasable');
+    showMainBtn.classList.remove('purchasable');
   }
+  
   // Offline upgrades and buildings
   const canBuyOfflineUpgrade = offlineUpgrades.some(u => purples >= u.cost && (!u.maxTier || u.tier < u.maxTier));
   const canBuyOfflineBuilding = offlineBuildings.some(b => purples >= b.cost && (!b.maxTier || b.tier < b.maxTier));
@@ -897,138 +1059,208 @@ function updateSidebarTabPurchasable() {
 }
 
 function renderSidebar() {
-  upgradesSidebar.style.display = (sidebarPage === 'upgrades' || sidebarPage === 'buildings') ? 'flex' : 'none';
-  upgradesSidebar.innerHTML = '';
+  // Show/hide sidebars based on current page
+  mainSidebar.style.display = (sidebarPage === 'main') ? 'flex' : 'none';
+  upgradesSidebar.style.display = 'none';
   offlineUpgradeSidebar.style.display = (sidebarPage === 'offline') ? 'flex' : 'none';
-  offlineUpgradeSidebar.innerHTML = '';
-  if (sidebarPage === 'upgrades') {
-    upgradesSidebar.innerHTML += '<h3 style="color:#c77dff;text-align:center;margin-bottom:18px;">Upgrades</h3>';
-    manualUpgrades.forEach((upgrade) => {
-      // Hide maxed upgrades if toggle is on
-      if (hideMaxedUpgrades && upgrade.maxTier && upgrade.tier >= upgrade.maxTier) return;
-      const btn = document.createElement('button');
-      btn.className = 'upgrade-btn';
-      btn.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
-      btn.innerHTML = `
-        <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
-        <div style="font-size:0.95em;">${upgrade.description}</div>
-        <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
-      `;
-      btn.onclick = () => {
-        if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
-          purples -= upgrade.cost;
-          upgrade.tier++;
-          upgrade.effect();
-          upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
-          // Create upgrade particles
-          createUpgradeParticles(btn);
-          if (!isMuted && meowAudio) {
-            meowAudio.currentTime = 0;
-            meowAudio.play();
-          }
-          updateScore();
-          renderSidebar();
-          saveGame();
-        }
-      };
-      upgradesSidebar.appendChild(btn);
-    });
-  } else if (sidebarPage === 'buildings') {
-    upgradesSidebar.innerHTML = '<h3 style="color:#c77dff;text-align:center;margin-bottom:18px;">Buildings</h3>';
-    buildings.forEach((building) => {
-      const btn = document.createElement('button');
-      btn.className = 'upgrade-btn';
-      btn.disabled = (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
-      btn.innerHTML = `
-        <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
-        <div style="font-size:0.95em;">${building.description}</div>
-        <div style="margin-top:4px;">Cost: ${formatNumber(building.cost)} Purples</div>
-      `;
-      btn.onclick = () => {
-        if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
-          purples -= building.cost;
-          building.tier++;
-          building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
-          // Create upgrade particles
-          createUpgradeParticles(btn);
-          if (!isMuted && meowAudio) {
-            meowAudio.currentTime = 0;
-            meowAudio.play();
-          }
-          // Track building purchases for Building Boom achievement
-          if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
-          window._buildingBuyTimestamps.push(Date.now());
-          if (building.id === 'purple_farm') updateFarmDecor();
-          updateScore();
-          saveGame();
-        }
-      };
-      upgradesSidebar.appendChild(btn);
-    });
+  
+  if (sidebarPage === 'main') {
+    renderMainSidebar();
   } else if (sidebarPage === 'offline') {
-    offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin-bottom:18px;">Offline Upgrades</h3>';
-    offlineUpgrades.forEach((upgrade) => {
-      const btn = document.createElement('button');
-      btn.className = 'upgrade-btn';
-      btn.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
-      btn.innerHTML = `
-        <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
-        <div style="font-size:0.95em;">${upgrade.description}</div>
-        <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
-      `;
-      btn.onclick = () => {
-        if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
-          purples -= upgrade.cost;
-          upgrade.tier++;
-          if (typeof upgrade.effect === 'function') upgrade.effect();
-          upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
-          // Create upgrade particles
-          createUpgradeParticles(btn);
-          if (!isMuted && meowAudio) {
-            meowAudio.currentTime = 0;
-            meowAudio.play();
-          }
-          updateScore();
-          renderSidebar();
-          saveGame();
-        }
-      };
-      offlineUpgradeSidebar.appendChild(btn);
-    });
-    offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin:24px 0 12px 0;">Offline Buildings</h3>';
-    offlineBuildings.forEach((building) => {
-      const btn = document.createElement('button');
-      btn.className = 'upgrade-btn';
-      btn.disabled = (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
-      btn.innerHTML = `
-        <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
-        <div style="font-size:0.95em;">${building.description}</div>
-        <div style="margin-top:4px;">Cost: ${formatNumber(building.cost)} Purples</div>
-      `;
-      btn.onclick = () => {
-        if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
-          purples -= building.cost;
-          building.tier++;
-          building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
-          // Create upgrade particles
-          createUpgradeParticles(btn);
-          if (!isMuted && meowAudio) {
-            meowAudio.currentTime = 0;
-            meowAudio.play();
-          }
-          // Track building purchases for Building Boom achievement
-          if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
-          window._buildingBuyTimestamps.push(Date.now());
-          updateScore();
-          renderSidebar();
-          saveGame();
-        }
-      };
-      offlineUpgradeSidebar.appendChild(btn);
-    });
+    renderOfflineSidebar();
   }
+  
   updateSidebarTabPurchasable();
   checkCasinoUnlock();
+}
+
+function renderMainSidebar() {
+  // Clear existing content
+  upgradeGrid.innerHTML = '';
+  buildingList.innerHTML = '';
+  
+  // Render upgrades grid
+  const sortedUpgrades = sortUpgradesByPrice();
+  sortedUpgrades.forEach((upgrade) => {
+    const square = document.createElement('button');
+    square.className = 'upgrade-square';
+    square.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
+    square.innerHTML = upgrade.icon || '⭐';
+    
+    // Add tooltip events
+    square.addEventListener('mouseenter', (e) => {
+      const tooltip = generateUpgradeTooltip(upgrade);
+      createTooltip(tooltip, e.clientX, e.clientY);
+    });
+    
+    square.addEventListener('mouseleave', () => {
+      removeTooltip();
+    });
+    
+    square.addEventListener('mousemove', (e) => {
+      if (currentTooltip) {
+        currentTooltip.style.left = (e.clientX + 15) + 'px';
+        currentTooltip.style.top = (e.clientY - 10) + 'px';
+      }
+    });
+    
+    square.onclick = () => {
+      if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
+        purples -= upgrade.cost;
+        upgrade.tier++;
+        upgrade.effect();
+        upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
+        
+        createUpgradeParticles(square);
+        if (!isMuted && meowAudio) {
+          meowAudio.currentTime = 0;
+          meowAudio.play();
+        }
+        
+        updateScore();
+        renderSidebar();
+        saveGame();
+      }
+    };
+    
+    upgradeGrid.appendChild(square);
+  });
+  
+  // Render buildings list
+  const visibleBuildings = getBuildingVisibility();
+  visibleBuildings.forEach(({ building, obscured }) => {
+    const item = document.createElement('button');
+    item.className = 'building-item' + (obscured ? ' building-obscured' : '');
+    item.disabled = obscured || (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
+    
+    const displayName = obscured ? obscureBuildingName(building.name) : building.name;
+    const countDisplay = building.tier > 0 ? `(${building.tier})` : '';
+    
+    item.innerHTML = `
+      <div class="building-item-left">
+        <div class="building-item-icon">${building.icon || '🏢'}</div>
+        <div class="building-item-info">
+          <div class="building-item-name">${displayName}</div>
+          <div class="building-item-cost">${formatNumber(building.cost)} Purples</div>
+        </div>
+      </div>
+      ${countDisplay ? `<div class="building-item-count">${countDisplay}</div>` : ''}
+    `;
+    
+    // Add tooltip events
+    item.addEventListener('mouseenter', (e) => {
+      const tooltip = generateBuildingTooltip(building, obscured);
+      createTooltip(tooltip, e.clientX, e.clientY);
+    });
+    
+    item.addEventListener('mouseleave', () => {
+      removeTooltip();
+    });
+    
+    item.addEventListener('mousemove', (e) => {
+      if (currentTooltip) {
+        currentTooltip.style.left = (e.clientX + 15) + 'px';
+        currentTooltip.style.top = (e.clientY - 10) + 'px';
+      }
+    });
+    
+    if (!obscured) {
+      item.onclick = () => {
+        if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
+          purples -= building.cost;
+          building.tier++;
+          building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
+          
+          createUpgradeParticles(item);
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          
+          // Track building purchases for Building Boom achievement
+          if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
+          window._buildingBuyTimestamps.push(Date.now());
+          
+          if (building.id === 'purple_farm') updateFarmDecor();
+          
+          updateScore();
+          renderSidebar();
+          saveGame();
+        }
+      };
+    }
+    
+    buildingList.appendChild(item);
+  });
+}
+
+function renderOfflineSidebar() {
+  offlineUpgradeSidebar.innerHTML = '';
+  
+  offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin-bottom:18px;">Offline Upgrades</h3>';
+  offlineUpgrades.forEach((upgrade) => {
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
+    btn.innerHTML = `
+      <div style="font-weight:bold;">${upgrade.name} (Tier ${upgrade.tier}${upgrade.maxTier !== Infinity ? '/' + upgrade.maxTier : ''})</div>
+      <div style="font-size:0.95em;">${upgrade.description}</div>
+      <div style="margin-top:4px;">Cost: ${formatNumber(upgrade.cost)} Purples</div>
+    `;
+    btn.onclick = () => {
+      if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
+        purples -= upgrade.cost;
+        upgrade.tier++;
+        if (typeof upgrade.effect === 'function') upgrade.effect();
+        upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
+        
+        createUpgradeParticles(btn);
+        if (!isMuted && meowAudio) {
+          meowAudio.currentTime = 0;
+          meowAudio.play();
+        }
+        
+        updateScore();
+        renderSidebar();
+        saveGame();
+      }
+    };
+    offlineUpgradeSidebar.appendChild(btn);
+  });
+  
+  offlineUpgradeSidebar.innerHTML += '<h3 style="color:#ffe066;text-align:center;margin:24px 0 12px 0;">Offline Buildings</h3>';
+  offlineBuildings.forEach((building) => {
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled = (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
+    btn.innerHTML = `
+      <div style="font-weight:bold;">${building.name} (Tier ${building.tier}${building.maxTier ? '/' + building.maxTier : ''})</div>
+      <div style="font-size:0.95em;">${building.description}</div>
+      <div style="margin-top:4px;">Cost: ${formatNumber(building.cost)} Purples</div>
+    `;
+    btn.onclick = () => {
+      if (purples >= building.cost && (!building.maxTier || building.tier < building.maxTier)) {
+        purples -= building.cost;
+        building.tier++;
+        building.cost = Math.round(building.baseCost * Math.pow(building.costGrowth, building.tier));
+        
+        createUpgradeParticles(btn);
+        if (!isMuted && meowAudio) {
+          meowAudio.currentTime = 0;
+          meowAudio.play();
+        }
+        
+        // Track building purchases for Building Boom achievement
+        if (!window._buildingBuyTimestamps) window._buildingBuyTimestamps = [];
+        window._buildingBuyTimestamps.push(Date.now());
+        
+        updateScore();
+        renderSidebar();
+        saveGame();
+      }
+    };
+    offlineUpgradeSidebar.appendChild(btn);
+  });
 }
 
 function createFallingPurple() {
@@ -1302,6 +1534,7 @@ resetGameBtn.addEventListener('click', () => {
     buildings.forEach(b => {
       b.tier = 0;
       b.cost = b.baseCost;
+      b.totalProduced = 0;
     });
     techTree.forEach(t => {
       t.level = 0;
@@ -1809,6 +2042,18 @@ function gameLoop(currentTime) {
       purples += wholePurples;
       totalPurplesEarned += wholePurples;
       totalAutoClicks += wholePurples;
+      
+      // Track building production for statistics
+      if (pps > 0) {
+        buildings.forEach(building => {
+          if (building.tier > 0) {
+            const buildingPPS = building.tier * building.pps;
+            const buildingPortion = (buildingPPS / pps) * wholePurples;
+            building.totalProduced += buildingPortion;
+          }
+        });
+      }
+      
       fractionalPurples -= wholePurples; // Keep the remainder
     }
     
@@ -1909,19 +2154,7 @@ document.addEventListener('resume', () => {
   lastActive = Date.now();
 });
 
-showUpgradesBtn.addEventListener('click', () => {
-  sidebarPage = 'upgrades';
-  showUpgradesBtn.classList.add('active');
-  showBuildingsBtn.classList.remove('active');
-  renderSidebar();
-});
-showBuildingsBtn.addEventListener('click', () => {
-  sidebarPage = 'buildings';
-  showBuildingsBtn.classList.add('active');
-  showUpgradesBtn.classList.remove('active');
-  showOfflineBtn.classList.remove('active');
-  renderSidebar();
-});
+
 
 loadGame();
 updateScore();
@@ -2044,26 +2277,7 @@ function spinSlotMachine() {
   requestAnimationFrame(animateSpin);
 }
 
-showCasinoBtn.addEventListener('click', () => {
-  if (!showCasinoBtn.disabled) {
-    casinoModal.style.display = 'block';
-    if (ownsPurpleCasino()) {
-      // If this is the first unlock and the slot machine hasn't been shown yet in this session
-      if (!window._casinoSessionShown && !window._casinoUnlocked) {
-        window._casinoUnlocked = true;
-        window._casinoSessionShown = true;
-        document.getElementById('casino-content').innerHTML = '<p style="text-align:center; color:#a259ff; font-weight:bold;">Congratulations! You unlocked the Purple Casino. Minigames will appear here soon.</p>';
-        setTimeout(() => {
-          renderSlotMachineUI();
-        }, 1200);
-      } else {
-        renderSlotMachineUI();
-      }
-    } else {
-      document.getElementById('casino-content').innerHTML = '<p style="text-align:center; color:#a259ff; font-weight:bold;">You need to purchase a Purple Casino to play minigames!</p>';
-    }
-  }
-});
+
 
 // --- Purple Rain Effect for Slot Machine Wins ---
 function createPurpleRain(payout) {
@@ -2299,7 +2513,7 @@ function showPrestigeButton() {
         synergyClicks = 0;
         synergyBonus = 0;
         manualUpgrades.forEach(u => { u.tier = 0; u.cost = u.baseCost; });
-        buildings.forEach(b => { b.tier = 0; b.cost = b.baseCost; });
+        buildings.forEach(b => { b.tier = 0; b.cost = b.baseCost; b.totalProduced = 0; });
         // Tech tree levels remain but effects are applied elsewhere; save & refresh
         saveGame();
         location.reload();

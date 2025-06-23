@@ -11,12 +11,20 @@
   <button id="stats-btn">Statistics</button>
   <div id="falling-container"></div>
   <div id="sidebar-toggle">
-    <button id="show-upgrades" class="sidebar-tab active" title="Upgrades">★</button>
-    <button id="show-buildings" class="sidebar-tab" title="Buildings">⚙️</button>
+    <button id="show-main" class="sidebar-tab active" title="Main">⭐</button>
     <button id="show-casino" class="sidebar-tab" title="Casino">🎰</button>
     <button id="show-offline" class="sidebar-tab" title="Offline Upgrades">⏰</button>
   </div>
-  <div id="upgrade-sidebar"></div>
+  <div id="main-sidebar">
+    <div class="upgrades-section">
+      <div class="upgrade-grid" id="upgrade-grid"></div>
+    </div>
+    <div class="buildings-section">
+      <h3>Buildings</h3>
+      <div class="building-list" id="building-list"></div>
+    </div>
+  </div>
+  <div id="upgrade-sidebar" style="display: none;"></div>
   <div id="offline-upgrade-sidebar"></div>
   <div id="score">Purples: 0</div>
   <h1 id="main-title">Purple Clicker</h1>
