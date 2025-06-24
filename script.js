@@ -16,6 +16,9 @@ let prestigeMilestone = 100000 * Math.pow(3, totalPrestigePointsEarned);
 let offlineTimeBank = 0; // in seconds
 let lastActive = Date.now();
 let lastSavedPPS = 0; // Track PPS at the time of saving
+let casinoTotalBet = 0; // Total amount bet at casino
+let casinoTotalWon = 0; // Total amount won from casino
+let casinoTimesPlayed = 0; // Number of times played casino
 
 // Function to format numbers with space separators
 function formatNumber(num) {
@@ -936,6 +939,9 @@ function saveGame() {
     offlineTimeBank,
     lastActive,
     lastSavedPPS,
+    casinoTotalBet,
+    casinoTotalWon,
+    casinoTimesPlayed,
     offlineUpgrades: offlineUpgrades.map(u => ({ tier: u.tier, cost: u.cost })),
     offlineBuildings: offlineBuildings.map(b => ({ tier: b.tier, cost: b.cost })),
     techTree: techTree.map(t => ({ level: t.level, unlocked: t.unlocked })),
@@ -1012,6 +1018,9 @@ function loadGame() {
     offlineTimeBank = save.offlineTimeBank ?? 0;
     lastActive = save.lastActive ?? Date.now();
     lastSavedPPS = save.lastSavedPPS ?? 0;
+    casinoTotalBet = save.casinoTotalBet ?? 0;
+    casinoTotalWon = save.casinoTotalWon ?? 0;
+    casinoTimesPlayed = save.casinoTimesPlayed ?? 0;
     
     // Load offline upgrades and buildings
     if (save.offlineUpgrades) {
@@ -1938,6 +1947,23 @@ function renderStats() {
     <b>Session Start Time:</b> ${new Date(runStartTime).toLocaleString()}<br>
     <b>Offline Time Bank:</b> ${offlineHours}h ${offlineMinutes}m ${offlineSeconds}s (max 12h)
   `;
+  
+  // Add casino statistics if player has used the casino
+  if (casinoTimesPlayed > 0) {
+    const netCasinoResult = casinoTotalWon - casinoTotalBet;
+    const casinoResultText = netCasinoResult >= 0 ? 
+      `<span style="color:#66ff66;">+${formatNumber(netCasinoResult)}</span>` : 
+      `<span style="color:#ff6666;">${formatNumber(netCasinoResult)}</span>`;
+    
+    statsContent.innerHTML += `
+      <br><h3 style='margin-top:18px;color:#ffe066;'>🎰 Casino Statistics</h3>
+      <b>Times Played:</b> ${formatNumber(casinoTimesPlayed)}<br>
+      <b>Total Bet:</b> ${formatNumber(casinoTotalBet)}<br>
+      <b>Total Won:</b> ${formatNumber(casinoTotalWon)}<br>
+      <b>Net Result:</b> ${casinoResultText}
+    `;
+  }
+  
   statsContent.innerHTML += `<br><h3 style='margin-top:24px;color:#ffe066;'>Achievements</h3>`;
   statsContent.innerHTML += `<ul style='list-style:none;padding:0;'>` +
     achievements.map(a => `<li style='margin-bottom:8px;${a.unlocked ? "color:#ffe066;" : "color:#888;"}'>
@@ -2583,6 +2609,8 @@ function spinSlotMachine() {
     return;
   }
   purples -= bet;
+  casinoTotalBet += bet;
+  casinoTimesPlayed++;
   updateScore();
   spinBtn.disabled = true;
   // Do NOT clear resultEl.textContent here, so the previous result stays until the new animation starts
@@ -2624,6 +2652,7 @@ function spinSlotMachine() {
       if (payout > 0) {
         purples += payout;
         totalPurplesEarned += payout;
+        casinoTotalWon += payout;
         payoutMsgEl.textContent = `You won ${formatNumber(payout)} Purples!`;
         // Win animation: bounce and highlight
         resultEl.style.transition = 'transform 0.18s cubic-bezier(.5,1.8,.5,1), box-shadow 0.18s';
