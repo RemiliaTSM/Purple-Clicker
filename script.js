@@ -19,6 +19,11 @@ let lastSavedPPS = 0; // Track PPS at the time of saving
 
 // Function to format numbers with space separators
 function formatNumber(num) {
+  // Only round when using separators format
+  if (window.numberFormat === 'separators' || !window.numberFormat) {
+    num = Math.round(num);
+  }
+  
   if (num < 1000) return num.toString();
   
   switch (window.numberFormat) {
@@ -44,6 +49,7 @@ let manualClicksLastSecond = 0;
 let manualClickTimestamps = [];
 
 // Missing critical variables for game functionality will be declared later in file
+let sidebarNeedsUpdate = false; // Flag to track when sidebar needs updating
 
 // Performance tracking variables
 let performanceMetricsEnabled = false;
@@ -433,6 +439,111 @@ const offlineUpgradeSidebar = document.getElementById('offline-upgrade-sidebar')
 
 // Tooltip system
 let currentTooltip = null;
+let currentTooltipTarget = null; // Track which element the tooltip belongs to
+let currentTooltipType = null; // Track the type of tooltip (upgrade, building, etc.)
+
+function createTooltip(content, x, y, target, type) {
+  // If tooltip already exists for this target, just update content and position
+  if (currentTooltip && currentTooltipTarget === target && currentTooltipType === type) {
+    updateTooltipContent(content, x, y);
+    return currentTooltip;
+  }
+  
+  removeTooltip();
+  
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  tooltip.innerHTML = content;
+  document.body.appendChild(tooltip);
+  
+  // Position tooltip
+  positionTooltip(tooltip, x, y);
+  
+  // Show tooltip with animation
+  setTimeout(() => tooltip.classList.add('visible'), 10);
+  
+  currentTooltip = tooltip;
+  currentTooltipTarget = target;
+  currentTooltipType = type;
+  return tooltip;
+}
+
+function updateTooltipContent(content, x, y) {
+  if (currentTooltip) {
+    currentTooltip.innerHTML = content;
+    positionTooltip(currentTooltip, x, y);
+  }
+}
+
+function positionTooltip(tooltip, x, y) {
+  const rect = tooltip.getBoundingClientRect();
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  
+  // Adjust position to keep tooltip on screen
+  let left = x + 15;
+  let top = y - 10;
+  
+  if (left + rect.width > windowWidth) {
+    left = x - rect.width - 15;
+  }
+  
+  if (top + rect.height > windowHeight) {
+    top = y - rect.height + 10;
+  }
+  
+  if (left < 0) left = 10;
+  if (top < 0) top = 10;
+  
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = top + 'px';
+}
+
+function removeTooltip() {
+  if (currentTooltip) {
+    currentTooltip.remove();
+    currentTooltip = null;
+    currentTooltipTarget = null;
+    currentTooltipType = null;
+  }
+}
+
+// Function to update tooltip content every frame if one exists
+function updateActiveTooltips() {
+  if (currentTooltip && currentTooltipTarget && currentTooltipType) {
+    // Get current mouse position
+    const mouseEvent = window.lastMouseEvent;
+    if (!mouseEvent) return;
+    
+    let newContent = '';
+    
+    // Generate updated content based on tooltip type
+    if (currentTooltipType === 'upgrade') {
+      const upgradeId = currentTooltipTarget.getAttribute('data-upgrade');
+      const upgrade = [...buildingUpgrades, ...clickUpgrades].find(u => u.id === upgradeId);
+      if (upgrade) {
+        newContent = generateNewUpgradeTooltip(upgrade);
+      }
+    } else if (currentTooltipType === 'building') {
+      const buildingId = currentTooltipTarget.getAttribute('data-building');
+      const building = buildings.find(b => b.id === buildingId);
+      if (building) {
+        const obscured = currentTooltipTarget.classList.contains('building-obscured');
+        newContent = generateBuildingTooltip(building, obscured);
+      }
+    }
+    
+    if (newContent) {
+      updateTooltipContent(newContent, mouseEvent.clientX, mouseEvent.clientY);
+    }
+  }
+}
+
+// Track mouse position globally for tooltip updates
+window.lastMouseEvent = null;
+document.addEventListener('mousemove', (e) => {
+  window.lastMouseEvent = e;
+});
 
 // Helper functions for new sidebar
 function sortUpgradesByPrice() {
@@ -498,55 +609,10 @@ function generateBuildingTooltip(building, obscured = false) {
     <div class="tooltip-description">${building.description}</div>
     <div class="tooltip-stats">
       <div class="tooltip-stat-line tooltip-production">Each ${building.name} produces ${formatNumber(ppsPerBuilding)} purples per second.</div>
-      <div class="tooltip-stat-line tooltip-production">${owned} ${building.name} producing ${formatNumber(totalPPS)} purples per second (${percentage.toFixed(1)}% of total PpS)</div>
+      <div class="tooltip-stat-line tooltip-production">${owned} ${building.name} producing ${formatNumber(totalPPS)} purples per second (${(window.numberFormat === 'separators' || !window.numberFormat) ? Math.round(percentage) : percentage.toFixed(1)}% of total PpS)</div>
       <div class="tooltip-stat-line">${formatNumber(totalProduced)} purples produced so far</div>
     </div>
   `;
-}
-
-function createTooltip(content, x, y) {
-  removeTooltip();
-  
-  const tooltip = document.createElement('div');
-  tooltip.className = 'tooltip';
-  tooltip.innerHTML = content;
-  document.body.appendChild(tooltip);
-  
-  // Position tooltip
-  const rect = tooltip.getBoundingClientRect();
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-  
-  // Adjust position to keep tooltip on screen
-  let left = x + 15;
-  let top = y - 10;
-  
-  if (left + rect.width > windowWidth) {
-    left = x - rect.width - 15;
-  }
-  
-  if (top + rect.height > windowHeight) {
-    top = y - rect.height + 10;
-  }
-  
-  if (left < 0) left = 10;
-  if (top < 0) top = 10;
-  
-  tooltip.style.left = left + 'px';
-  tooltip.style.top = top + 'px';
-  
-  // Show tooltip with animation
-  setTimeout(() => tooltip.classList.add('visible'), 10);
-  
-  currentTooltip = tooltip;
-  return tooltip;
-}
-
-function removeTooltip() {
-  if (currentTooltip) {
-    currentTooltip.remove();
-    currentTooltip = null;
-  }
 }
 
 // Sidebar event listeners
@@ -1148,7 +1214,7 @@ function renderMainSidebar() {
       // Add tooltip events
       square.addEventListener('mouseenter', (e) => {
         const tooltip = generateNewUpgradeTooltip(upgrade);
-        createTooltip(tooltip, e.clientX, e.clientY);
+        createTooltip(tooltip, e.clientX, e.clientY, square, 'upgrade');
       });
       
       square.addEventListener('mouseleave', () => {
@@ -1168,6 +1234,7 @@ function renderMainSidebar() {
             meowAudio.currentTime = 0;
             meowAudio.play();
           }
+          sidebarNeedsUpdate = true; // Mark for update after purchase
           saveGame();
         }
       };
@@ -1182,6 +1249,7 @@ function renderMainSidebar() {
     const item = document.createElement('button');
     item.className = 'building-item' + (obscured ? ' building-obscured' : '');
     item.disabled = obscured || (building.maxTier && building.tier >= building.maxTier) || purples < building.cost;
+    item.setAttribute('data-building', building.id);
     
     const displayName = obscured ? obscureBuildingName(building.name) : building.name;
     const countDisplay = building.tier > 0 ? `(${building.tier})` : '';
@@ -1200,7 +1268,7 @@ function renderMainSidebar() {
     // Add tooltip events
     item.addEventListener('mouseenter', (e) => {
       const tooltip = generateBuildingTooltip(building, obscured);
-      createTooltip(tooltip, e.clientX, e.clientY);
+      createTooltip(tooltip, e.clientX, e.clientY, item, 'building');
     });
     
     item.addEventListener('mouseleave', () => {
@@ -1234,7 +1302,7 @@ function renderMainSidebar() {
           if (building.id === 'purple_farm') updateFarmDecor();
           
           updateScore();
-          renderSidebar();
+          sidebarNeedsUpdate = true; // Mark for update after purchase
           saveGame();
         }
       };
@@ -1282,7 +1350,7 @@ function showAdditionalUpgradeRows(additionalUpgrades) {
       // Add tooltip events
       square.addEventListener('mouseenter', (e) => {
         const tooltip = generateNewUpgradeTooltip(upgrade);
-        createTooltip(tooltip, e.clientX, e.clientY);
+        createTooltip(tooltip, e.clientX, e.clientY, square, 'upgrade');
       });
       
       square.addEventListener('mouseleave', () => {
@@ -1302,6 +1370,7 @@ function showAdditionalUpgradeRows(additionalUpgrades) {
             meowAudio.currentTime = 0;
             meowAudio.play();
           }
+          sidebarNeedsUpdate = true; // Mark for update after purchase
           saveGame();
         }
       };
@@ -1352,7 +1421,7 @@ function renderOfflineSidebar() {
         }
         
         updateScore();
-        renderSidebar();
+        sidebarNeedsUpdate = true; // Mark for update after purchase
         saveGame();
       }
     };
@@ -1889,8 +1958,8 @@ function renderStats() {
     statsContent.innerHTML += `
       <br><h3 style='margin-top:18px;color:#ffe066;'>Performance Metrics</h3>
       <b>FPS:</b> ${currentFPS}<br>
-      <b>Average Frame Time:</b> ${averageFrameTime.toFixed(2)}ms<br>
-      <b>Game Loop Time:</b> ${gameLoopTime.toFixed(2)}ms<br>
+      <b>Average Frame Time:</b> ${(window.numberFormat === 'separators' || !window.numberFormat) ? Math.round(averageFrameTime) : averageFrameTime.toFixed(2)}ms<br>
+      <b>Game Loop Time:</b> ${(window.numberFormat === 'separators' || !window.numberFormat) ? Math.round(gameLoopTime) : gameLoopTime.toFixed(2)}ms<br>
       <b>Active Particles:</b> ${particleCount}<br>
       ${memoryUsage > 0 ? `<b>Memory Usage:</b> ${memoryUsage}MB<br>` : ''}
       <div style='margin-top:8px;font-size:0.9em;color:#ccc;font-style:italic;'>
@@ -2260,7 +2329,7 @@ clickerImg.addEventListener('click', (e) => {
   totalClicks++;
   if (value > biggestSingleGain) biggestSingleGain = value;
   updateScore();
-  renderSidebar();
+  sidebarNeedsUpdate = true; // Update sidebar after manual click
   createFallingPurple();
   // Purple Avalanche removed with old upgrade system
   // Create click particles from button center
@@ -2356,6 +2425,9 @@ function gameLoop(currentTime) {
     updateScore();
   }
   
+  // Update tooltips every frame with current data
+  updateActiveTooltips();
+  
   // Update sidebar and other logic once per second to avoid performance issues
   accumulatedTime += deltaTime;
   if (accumulatedTime >= 1.0) {
@@ -2363,13 +2435,21 @@ function gameLoop(currentTime) {
     
     if (pps > 0) {
       if (pps > biggestSingleGain) biggestSingleGain = pps;
-      renderSidebar();
+      
+      // Only render sidebar when something changed that affects it
+      if (sidebarNeedsUpdate) {
+        renderSidebar();
+        sidebarNeedsUpdate = false;
+      } else {
+        // Just update the purchasable states without full re-render
+        updateSidebarTabPurchasable();
+      }
+      
       // Create PPS particles occasionally
       if (Math.random() < 0.1) { // 10% chance per second
         createPPSParticles();
       }
       checkAchievements();
-      updateSidebarTabPurchasable();
     }
     
     // Offline time bank logic - apply offline booster upgrade
@@ -2450,7 +2530,7 @@ document.addEventListener('resume', () => {
 
 loadGame();
 updateScore();
-renderSidebar();
+sidebarNeedsUpdate = true; // Initial render needed
 updateSidebarTabPurchasable();
 
 function renderSlotMachineUI() {
