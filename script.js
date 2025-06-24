@@ -43,6 +43,8 @@ let currentPPS = 0;
 let manualClicksLastSecond = 0;
 let manualClickTimestamps = [];
 
+// Missing critical variables for game functionality will be declared later in file
+
 // Performance tracking variables
 let performanceMetricsEnabled = false;
 let frameCount = 0;
@@ -106,164 +108,117 @@ screamAudios.forEach(audio => {
   audio.volume = parseFloat(volumeSlider.value);
 });
 
-const manualUpgrades = [
-  {
-    id: 'stronger_click',
-    name: 'Stronger Clicks',
-    description: '+1 Purple per click per tier',
-    icon: '👆',
-    baseCost: 20,
-    cost: 20,
-    tier: 0,
-    effect: () => { clickValue += 1; },
-    costGrowth: 1.5,
-    maxTier: Infinity,
-  },
-  {
-    id: 'double_tap',
-    name: 'Double Tap',
-    description: 'Doubles your current click value (single-buy)',
-    icon: '👆👆',
-    baseCost: 500,
-    cost: 500,
-    tier: 0,
-    effect: () => { clickValue *= 2; },
-    costGrowth: 1,
-    maxTier: 1,
-  },
-  {
-    id: 'purple_surge',
-    name: 'Purple Surge',
-    description: '+5% click value per tier (max 10)',
-    icon: '⚡',
-    baseCost: 1000,
-    cost: 1000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2,
-    maxTier: 10,
-  },
-  {
-    id: 'critical_clicks',
-    name: 'Critical Clicks',
-    description: '5% chance for clicks to be worth 10x (single-buy)',
-    icon: '💥',
-    baseCost: 2500,
-    cost: 2500,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 1,
-    maxTier: 1,
-  },
-  {
-    id: 'purple_multiplier',
-    name: 'Purple Multiplier',
-    description: '+10% to all manual click gains per tier (max 10)',
-    icon: '✖️',
-    baseCost: 5000,
-    cost: 5000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2.5,
-    maxTier: 10,
-  },
-  {
-    id: 'clickstorm',
-    name: 'Clickstorm',
-    description: '+2 clicks/sec for 10s after every 50 clicks (up to 5 tiers, increases duration)',
-    icon: '🌪️',
-    baseCost: 20000,
-    cost: 20000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2.5,
-    maxTier: 5,
-  },
-  {
-    id: 'golden_touch',
-    name: 'Golden Touch',
-    description: 'Every 100th click gives 100x Purples (single-buy)',
-    icon: '✨',
-    baseCost: 50000,
-    cost: 50000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 1,
-    maxTier: 1,
-  },
-  {
-    id: 'efficient_clicking',
-    name: 'Efficient Clicking',
-    description: 'Reduces click cooldown by 10% per tier (up to 5 tiers)',
-    icon: '⏱️',
-    baseCost: 15000,
-    cost: 15000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2,
-    maxTier: 5,
-  },
-  {
-    id: 'click_combo',
-    name: 'Click Combo',
-    description: 'Each consecutive click within 1s increases click value by 1% (up to 20% per tier)',
-    icon: '🔥',
-    baseCost: 25000,
-    cost: 25000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2.5,
-    maxTier: 10,
-  },
-  {
-    id: 'finger_of_fate',
-    name: 'Finger of Fate',
-    description: 'Next click is guaranteed to be a critical click (single-buy)',
-    icon: '🔮',
-    baseCost: 100000,
-    cost: 100000,
-    tier: 0,
-    effect: () => { critActive = true; },
-    costGrowth: 1,
-    maxTier: 1,
-  },
-  {
-    id: 'click_magnet',
-    name: 'Click Magnet',
-    description: '+1% chance per tier for double Purples per click (up to 10 tiers)',
-    icon: '🧲',
-    baseCost: 30000,
-    cost: 30000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2,
-    maxTier: 10,
-  },
-  {
-    id: 'purple_avalanche',
-    name: 'Purple Avalanche',
-    description: 'For 30s, every click drops 5 extra falling purples (single-buy)',
-    icon: '🌨️',
-    baseCost: 200000,
-    cost: 200000,
-    tier: 0,
-    effect: () => { purpleAvalancheActive = Date.now() + 30000; },
-    costGrowth: 1,
-    maxTier: 1,
-  },
-  {
-    id: 'auto_click_synergy',
-    name: 'Auto-Click Synergy',
-    description: 'For every 10 manual clicks, gain +1 auto-click per second per tier (permanent, stacks with other auto-clickers)',
-    icon: '🔗',
-    baseCost: 40000,
-    cost: 40000,
-    tier: 0,
-    effect: () => {},
-    costGrowth: 2.5,
-    maxTier: 10,
-  },
-  // Add more manual upgrades here
+// New upgrade system - building-specific upgrades
+const buildingUpgrades = [
+  // Auto Clicker Upgrades
+  { id: 'auto_clicker_faster_clicks', buildingType: 'auto_clicker', tier: 1, name: 'Faster Clicks', description: 'Doubles Auto Clicker PpS', icon: '⚡', cost: 500, owned: false },
+  { id: 'auto_clicker_click_precision', buildingType: 'auto_clicker', tier: 2, name: 'Click Precision', description: 'Doubles Auto Clicker PpS', icon: '🎯', cost: 2500, owned: false },
+  { id: 'auto_clicker_quantum_clicking', buildingType: 'auto_clicker', tier: 3, name: 'Quantum Clicking', description: 'Doubles Auto Clicker PpS', icon: '⚛️', cost: 12000, owned: false },
+  { id: 'auto_clicker_farm_synergy', buildingType: 'auto_clicker', tier: 4, name: 'Farm Synergy', description: 'Auto Clickers gain +1% PpS per Purple Farm owned', icon: '🌾', cost: 8000, owned: false },
+  { id: 'auto_clicker_casino_connection', buildingType: 'auto_clicker', tier: 5, name: 'Casino Connection', description: 'Auto Clickers gain +0.5% PpS per Purple Casino owned', icon: '🎲', cost: 25000, owned: false },
+  { id: 'auto_clicker_factory_network', buildingType: 'auto_clicker', tier: 6, name: 'Factory Network', description: 'Auto Clickers gain +0.2% PpS per Purple Factory owned', icon: '🔗', cost: 100000, owned: false },
+  { id: 'auto_clicker_multi_click_array', buildingType: 'auto_clicker', tier: 7, name: 'Multi-Click Array', description: 'Doubles Auto Clicker PpS + gains 1% of total manual click value per Auto Clicker', icon: '📡', cost: 500000, owned: false },
+  { id: 'auto_clicker_global_automation', buildingType: 'auto_clicker', tier: 8, name: 'Global Automation', description: 'Auto Clickers gain +0.1% PpS per building of any type owned', icon: '🌐', cost: 2000000, owned: false },
+  { id: 'auto_clicker_exponential_clicking', buildingType: 'auto_clicker', tier: 9, name: 'Exponential Clicking', description: 'Auto Clicker PpS increased by 50% for each Auto Clicker upgrade owned', icon: '📈', cost: 10000000, owned: false },
+  { id: 'auto_clicker_ultimate_clicker', buildingType: 'auto_clicker', tier: 10, name: 'Ultimate Clicker', description: 'Quadruples Auto Clicker PpS + Auto Clickers produce 1% of total PpS as bonus', icon: '👑', cost: 50000000, owned: false },
+  
+  // Purple Farm Upgrades
+  { id: 'purple_farm_fertile_soil', buildingType: 'purple_farm', tier: 1, name: 'Fertile Soil', description: 'Doubles Purple Farm PpS', icon: '🌱', cost: 10000, owned: false },
+  { id: 'purple_farm_advanced_irrigation', buildingType: 'purple_farm', tier: 2, name: 'Advanced Irrigation', description: 'Doubles Purple Farm PpS', icon: '💧', cost: 50000, owned: false },
+  { id: 'purple_farm_genetic_engineering', buildingType: 'purple_farm', tier: 3, name: 'Genetic Engineering', description: 'Doubles Purple Farm PpS', icon: '🧬', cost: 250000, owned: false },
+  { id: 'purple_farm_clicker_cooperation', buildingType: 'purple_farm', tier: 4, name: 'Clicker Cooperation', description: 'Farms gain +2% PpS per Auto Clicker owned', icon: '🤝', cost: 75000, owned: false },
+  { id: 'purple_farm_industrial_farming', buildingType: 'purple_farm', tier: 5, name: 'Industrial Farming', description: 'Farms gain +1% PpS per Purple Factory owned', icon: '🏭', cost: 400000, owned: false },
+  { id: 'purple_farm_mining_resources', buildingType: 'purple_farm', tier: 6, name: 'Mining Resources', description: 'Farms gain +0.5% PpS per Purple Mine owned', icon: '⛏️', cost: 1500000, owned: false },
+  { id: 'purple_farm_bio_enhancement', buildingType: 'purple_farm', tier: 7, name: 'Bio-Enhancement', description: 'Doubles Farm PpS + Farms gain +0.2% PpS per Purple Lab owned', icon: '🧪', cost: 5000000, owned: false },
+  { id: 'purple_farm_dimensional_agriculture', buildingType: 'purple_farm', tier: 8, name: 'Dimensional Agriculture', description: 'Farms gain +0.1% PpS per Purple Portal owned + produce 2% of total building PpS as bonus', icon: '🌌', cost: 25000000, owned: false },
+  { id: 'purple_farm_cosmic_farming', buildingType: 'purple_farm', tier: 9, name: 'Cosmic Farming', description: 'Farm PpS increased by 100% for each Farm upgrade owned', icon: '🌟', cost: 100000000, owned: false },
+  { id: 'purple_farm_infinite_harvest', buildingType: 'purple_farm', tier: 10, name: 'Infinite Harvest', description: 'Quadruples Farm PpS + all other buildings gain +0.5% PpS per Farm owned', icon: '♾️', cost: 500000000, owned: false },
+  
+  // Purple Casino Upgrades
+  { id: 'purple_casino_lucky_machines', buildingType: 'purple_casino', tier: 1, name: 'Lucky Machines', description: 'Doubles Purple Casino PpS', icon: '🍀', cost: 80000, owned: false },
+  { id: 'purple_casino_vip_tables', buildingType: 'purple_casino', tier: 2, name: 'VIP Tables', description: 'Doubles Purple Casino PpS', icon: '💎', cost: 400000, owned: false },
+  { id: 'purple_casino_rigged_games', buildingType: 'purple_casino', tier: 3, name: 'Rigged Games', description: 'Doubles Purple Casino PpS', icon: '🎭', cost: 2000000, owned: false },
+  { id: 'purple_casino_auto_clicker_jackpots', buildingType: 'purple_casino', tier: 4, name: 'Auto Clicker Jackpots', description: 'Casinos gain +3% PpS per Auto Clicker owned', icon: '🎰', cost: 500000, owned: false },
+  { id: 'purple_casino_farm_partnerships', buildingType: 'purple_casino', tier: 5, name: 'Farm Partnerships', description: 'Casinos gain +2% PpS per Purple Farm owned', icon: '🌾', cost: 1200000, owned: false },
+  { id: 'purple_casino_factory_deals', buildingType: 'purple_casino', tier: 6, name: 'Factory Deals', description: 'Casinos gain +1% PpS per Purple Factory owned', icon: '🏭', cost: 5000000, owned: false },
+  { id: 'purple_casino_purple_lottery', buildingType: 'purple_casino', tier: 7, name: 'Purple Lottery', description: 'Doubles Casino PpS + 1% chance per second to gain 10x current Casino PpS', icon: '🎫', cost: 20000000, owned: false },
+  { id: 'purple_casino_interdimensional_gambling', buildingType: 'purple_casino', tier: 8, name: 'Interdimensional Gambling', description: 'Casinos gain +0.2% PpS per Portal owned + produce 3% of manual click value per Casino', icon: '🌀', cost: 100000000, owned: false },
+  { id: 'purple_casino_probability_manipulation', buildingType: 'purple_casino', tier: 9, name: 'Probability Manipulation', description: 'Casino PpS increased by 75% for each Casino upgrade owned', icon: '🔮', cost: 500000000, owned: false },
+  { id: 'purple_casino_cosmic_jackpot', buildingType: 'purple_casino', tier: 10, name: 'Cosmic Jackpot', description: 'Triples Casino PpS + all manual clicks have 5% chance to trigger Casino bonus equal to current Casino PpS', icon: '🌠', cost: 2500000000, owned: false },
+  
+  // Purple Factory Upgrades
+  { id: 'purple_factory_assembly_lines', buildingType: 'purple_factory', tier: 1, name: 'Assembly Lines', description: 'Doubles Purple Factory PpS', icon: '⚙️', cost: 200000, owned: false },
+  { id: 'purple_factory_automation', buildingType: 'purple_factory', tier: 2, name: 'Automation', description: 'Doubles Purple Factory PpS', icon: '🤖', cost: 1000000, owned: false },
+  { id: 'purple_factory_mass_production', buildingType: 'purple_factory', tier: 3, name: 'Mass Production', description: 'Doubles Purple Factory PpS', icon: '📦', cost: 5000000, owned: false },
+  { id: 'purple_factory_supplier_network', buildingType: 'purple_factory', tier: 4, name: 'Supplier Network', description: 'Factories gain +1.5% PpS per Purple Farm owned', icon: '🚛', cost: 2000000, owned: false },
+  { id: 'purple_factory_casino_contracts', buildingType: 'purple_factory', tier: 5, name: 'Casino Contracts', description: 'Factories gain +1% PpS per Purple Casino owned', icon: '📜', cost: 8000000, owned: false },
+  { id: 'purple_factory_mining_operations', buildingType: 'purple_factory', tier: 6, name: 'Mining Operations', description: 'Factories gain +0.8% PpS per Purple Mine owned', icon: '⛏️', cost: 30000000, owned: false },
+  { id: 'purple_factory_research_division', buildingType: 'purple_factory', tier: 7, name: 'Research Division', description: 'Doubles Factory PpS + Factories gain +0.5% PpS per Purple Lab owned', icon: '🔬', cost: 100000000, owned: false },
+  { id: 'purple_factory_portal_manufacturing', buildingType: 'purple_factory', tier: 8, name: 'Portal Manufacturing', description: 'Factories gain +0.3% PpS per Portal owned + produce 1.5% of total building PpS as bonus', icon: '🌌', cost: 500000000, owned: false },
+  { id: 'purple_factory_industrial_empire', buildingType: 'purple_factory', tier: 9, name: 'Industrial Empire', description: 'Factory PpS increased by 60% for each Factory upgrade owned', icon: '🏗️', cost: 2000000000, owned: false },
+  { id: 'purple_factory_universal_production', buildingType: 'purple_factory', tier: 10, name: 'Universal Production', description: 'Triples Factory PpS + all other buildings gain +0.3% PpS per Factory owned', icon: '🌍', cost: 10000000000, owned: false },
+  
+  // Purple Mine Upgrades
+  { id: 'purple_mine_deeper_shafts', buildingType: 'purple_mine', tier: 1, name: 'Deeper Shafts', description: 'Doubles Purple Mine PpS', icon: '🕳️', cost: 3000000, owned: false },
+  { id: 'purple_mine_industrial_equipment', buildingType: 'purple_mine', tier: 2, name: 'Industrial Equipment', description: 'Doubles Purple Mine PpS', icon: '🚜', cost: 15000000, owned: false },
+  { id: 'purple_mine_quantum_drilling', buildingType: 'purple_mine', tier: 3, name: 'Quantum Drilling', description: 'Doubles Purple Mine PpS', icon: '⚛️', cost: 75000000, owned: false },
+  { id: 'purple_mine_farm_resources', buildingType: 'purple_mine', tier: 4, name: 'Farm Resources', description: 'Mines gain +1% PpS per Purple Farm owned', icon: '🌾', cost: 20000000, owned: false },
+  { id: 'purple_mine_factory_partnership', buildingType: 'purple_mine', tier: 5, name: 'Factory Partnership', description: 'Mines gain +0.8% PpS per Purple Factory owned', icon: '🏭', cost: 100000000, owned: false },
+  { id: 'purple_mine_casino_investment', buildingType: 'purple_mine', tier: 6, name: 'Casino Investment', description: 'Mines gain +0.6% PpS per Purple Casino owned', icon: '💰', cost: 250000000, owned: false },
+  { id: 'purple_mine_research_collaboration', buildingType: 'purple_mine', tier: 7, name: 'Research Collaboration', description: 'Doubles Mine PpS + Mines gain +0.4% PpS per Purple Lab owned', icon: '🧪', cost: 1000000000, owned: false },
+  { id: 'purple_mine_portal_mining', buildingType: 'purple_mine', tier: 8, name: 'Portal Mining', description: 'Mines gain +0.2% PpS per Portal owned + produce 1% of total building PpS as bonus', icon: '🌌', cost: 5000000000, owned: false },
+  { id: 'purple_mine_geological_mastery', buildingType: 'purple_mine', tier: 9, name: 'Geological Mastery', description: 'Mine PpS increased by 50% for each Mine upgrade owned', icon: '🗻', cost: 20000000000, owned: false },
+  { id: 'purple_mine_core_extraction', buildingType: 'purple_mine', tier: 10, name: 'Core Extraction', description: 'Triples Mine PpS + all buildings gain +0.1% click value per Mine owned', icon: '🌋', cost: 100000000000, owned: false },
+  
+  // Purple Lab Upgrades
+  { id: 'purple_lab_advanced_research', buildingType: 'purple_lab', tier: 1, name: 'Advanced Research', description: 'Doubles Purple Lab PpS', icon: '🔬', cost: 100000000, owned: false },
+  { id: 'purple_lab_prototype_development', buildingType: 'purple_lab', tier: 2, name: 'Prototype Development', description: 'Doubles Purple Lab PpS', icon: '⚗️', cost: 500000000, owned: false },
+  { id: 'purple_lab_scientific_breakthrough', buildingType: 'purple_lab', tier: 3, name: 'Scientific Breakthrough', description: 'Doubles Purple Lab PpS', icon: '💡', cost: 2500000000, owned: false },
+  { id: 'purple_lab_agricultural_studies', buildingType: 'purple_lab', tier: 4, name: 'Agricultural Studies', description: 'Labs gain +0.8% PpS per Purple Farm owned', icon: '🌱', cost: 750000000, owned: false },
+  { id: 'purple_lab_industrial_analysis', buildingType: 'purple_lab', tier: 5, name: 'Industrial Analysis', description: 'Labs gain +0.6% PpS per Purple Factory owned', icon: '🔧', cost: 3000000000, owned: false },
+  { id: 'purple_lab_mining_research', buildingType: 'purple_lab', tier: 6, name: 'Mining Research', description: 'Labs gain +0.5% PpS per Purple Mine owned', icon: '⛏️', cost: 12000000000, owned: false },
+  { id: 'purple_lab_quantum_experiments', buildingType: 'purple_lab', tier: 7, name: 'Quantum Experiments', description: 'Doubles Lab PpS + Labs boost all other buildings\' PpS by 0.5% per Lab owned', icon: '⚛️', cost: 50000000000, owned: false },
+  { id: 'purple_lab_portal_studies', buildingType: 'purple_lab', tier: 8, name: 'Portal Studies', description: 'Labs gain +0.3% PpS per Portal owned + produce 0.8% of total building PpS as bonus', icon: '🌌', cost: 200000000000, owned: false },
+  { id: 'purple_lab_scientific_revolution', buildingType: 'purple_lab', tier: 9, name: 'Scientific Revolution', description: 'Lab PpS increased by 40% for each Lab upgrade owned', icon: '🧬', cost: 1000000000000, owned: false },
+  { id: 'purple_lab_universal_knowledge', buildingType: 'purple_lab', tier: 10, name: 'Universal Knowledge', description: 'Triples Lab PpS + all upgrades cost 5% less for each Lab owned (max 50% reduction)', icon: '📚', cost: 5000000000000, owned: false },
+  
+  // Purple Portal Upgrades
+  { id: 'purple_portal_dimensional_stability', buildingType: 'purple_portal', tier: 1, name: 'Dimensional Stability', description: 'Doubles Purple Portal PpS', icon: '🔮', cost: 2500000000, owned: false },
+  { id: 'purple_portal_portal_expansion', buildingType: 'purple_portal', tier: 2, name: 'Portal Expansion', description: 'Doubles Purple Portal PpS', icon: '🌀', cost: 12500000000, owned: false },
+  { id: 'purple_portal_multiverse_access', buildingType: 'purple_portal', tier: 3, name: 'Multiverse Access', description: 'Doubles Purple Portal PpS', icon: '♾️', cost: 62500000000, owned: false },
+  { id: 'purple_portal_cross_dimensional_mining', buildingType: 'purple_portal', tier: 4, name: 'Cross-Dimensional Mining', description: 'Portals gain +0.5% PpS per Purple Mine owned', icon: '⛏️', cost: 25000000000, owned: false },
+  { id: 'purple_portal_interdimensional_labs', buildingType: 'purple_portal', tier: 5, name: 'Interdimensional Labs', description: 'Portals gain +0.4% PpS per Purple Lab owned', icon: '🧪', cost: 100000000000, owned: false },
+  { id: 'purple_portal_portal_network', buildingType: 'purple_portal', tier: 6, name: 'Portal Network', description: 'Portals gain +0.3% PpS per other Portal owned', icon: '🔗', cost: 400000000000, owned: false },
+  { id: 'purple_portal_reality_manipulation', buildingType: 'purple_portal', tier: 7, name: 'Reality Manipulation', description: 'Doubles Portal PpS + Portals boost all buildings\' PpS by 0.2% per Portal owned', icon: '🌟', cost: 1500000000000, owned: false },
+  { id: 'purple_portal_galactic_connection', buildingType: 'purple_portal', tier: 8, name: 'Galactic Connection', description: 'Portals gain +0.1% PpS per Galactic Purpler owned + produce 0.5% of total building PpS as bonus', icon: '🚀', cost: 6000000000000, owned: false },
+  { id: 'purple_portal_dimensional_mastery', buildingType: 'purple_portal', tier: 9, name: 'Dimensional Mastery', description: 'Portal PpS increased by 30% for each Portal upgrade owned', icon: '🎭', cost: 25000000000000, owned: false },
+  { id: 'purple_portal_infinity_gate', buildingType: 'purple_portal', tier: 10, name: 'Infinity Gate', description: 'Triples Portal PpS + manual clicks gain +1% of total Portal PpS as bonus', icon: '🌠', cost: 100000000000000, owned: false },
+  
+  // Galactic Purpler Upgrades
+  { id: 'galactic_purpler_rocket_boost', buildingType: 'galactic_purpler', tier: 1, name: 'Rocket Boost', description: 'Doubles Galactic Purpler PpS', icon: '🔥', cost: 50000000000, owned: false },
+  { id: 'galactic_purpler_stellar_navigation', buildingType: 'galactic_purpler', tier: 2, name: 'Stellar Navigation', description: 'Doubles Galactic Purpler PpS', icon: '⭐', cost: 250000000000, owned: false },
+  { id: 'galactic_purpler_cosmic_enhancement', buildingType: 'galactic_purpler', tier: 3, name: 'Cosmic Enhancement', description: 'Doubles Galactic Purpler PpS', icon: '🌌', cost: 1250000000000, owned: false },
+  { id: 'galactic_purpler_planetary_mining', buildingType: 'galactic_purpler', tier: 4, name: 'Planetary Mining', description: 'Purpler gain +0.3% PpS per Purple Mine owned', icon: '🪐', cost: 500000000000, owned: false },
+  { id: 'galactic_purpler_space_labs', buildingType: 'galactic_purpler', tier: 5, name: 'Space Labs', description: 'Purpler gain +0.2% PpS per Purple Lab owned', icon: '🛰️', cost: 2000000000000, owned: false },
+  { id: 'galactic_purpler_portal_integration', buildingType: 'galactic_purpler', tier: 6, name: 'Portal Integration', description: 'Purpler gain +0.15% PpS per Purple Portal owned', icon: '🌀', cost: 8000000000000, owned: false },
+  { id: 'galactic_purpler_galactic_empire', buildingType: 'galactic_purpler', tier: 7, name: 'Galactic Empire', description: 'Doubles Purpler PpS + Purpler boost all buildings\' PpS by 0.1% per Purpler owned', icon: '👑', cost: 30000000000000, owned: false },
+  { id: 'galactic_purpler_universal_conquest', buildingType: 'galactic_purpler', tier: 8, name: 'Universal Conquest', description: 'Purpler gain +0.05% PpS per building of any type owned + produce 0.3% of total building PpS as bonus', icon: '🌍', cost: 120000000000000, owned: false },
+  { id: 'galactic_purpler_cosmic_transcendence', buildingType: 'galactic_purpler', tier: 9, name: 'Cosmic Transcendence', description: 'Purpler PpS increased by 25% for each Purpler upgrade owned', icon: '✨', cost: 500000000000000, owned: false },
+  { id: 'galactic_purpler_omnipotence', buildingType: 'galactic_purpler', tier: 10, name: 'Omnipotence', description: 'Quadruples Purpler PpS + all effects in the game are increased by 1% per Galactic Purpler owned', icon: '🌠', cost: 2000000000000000, owned: false },
+];
+
+// Manual click upgrades
+const clickUpgrades = [
+  { id: 'steady_hands', tier: 1, name: 'Steady Hands', description: 'Manual clicks gain +10% of total Auto Clicker PpS', icon: '✋', cost: 1000, owned: false },
+  { id: 'click_focus', tier: 2, name: 'Click Focus', description: 'Manual clicks gain +5% of total Purple Farm PpS', icon: '🎯', cost: 15000, owned: false },
+  { id: 'lucky_strikes', tier: 3, name: 'Lucky Strikes', description: 'Manual clicks gain +2% of total Purple Casino PpS', icon: '🍀', cost: 120000, owned: false },
+  { id: 'industrial_strength', tier: 4, name: 'Industrial Strength', description: 'Manual clicks gain +1% of total Purple Factory PpS', icon: '💪', cost: 800000, owned: false },
+  { id: 'precision_striking', tier: 5, name: 'Precision Striking', description: 'Manual clicks gain +0.5% of total Purple Mine PpS', icon: '⚡', cost: 8000000, owned: false },
+  { id: 'scientific_clicking', tier: 6, name: 'Scientific Clicking', description: 'Manual clicks gain +0.2% of total Purple Lab PpS', icon: '🧪', cost: 150000000, owned: false },
+  { id: 'dimensional_touch', tier: 7, name: 'Dimensional Touch', description: 'Manual clicks gain +0.1% of total Purple Portal PpS', icon: '🌌', cost: 3000000000, owned: false },
+  { id: 'cosmic_power', tier: 8, name: 'Cosmic Power', description: 'Manual clicks gain +0.05% of total Galactic Purpler PpS', icon: '🚀', cost: 75000000000, owned: false },
+  { id: 'click_mastery', tier: 9, name: 'Click Mastery', description: 'Manual clicks gain +1% of total PpS from all sources', icon: '👑', cost: 1500000000000, owned: false },
+  { id: 'ultimate_clicker', tier: 10, name: 'Ultimate Clicker', description: 'Manual clicks gain +0.1% of total PpS per manual click upgrade owned', icon: '🌟', cost: 50000000000000, owned: false },
 ];
 
 const buildings = [
@@ -481,8 +436,8 @@ let currentTooltip = null;
 
 // Helper functions for new sidebar
 function sortUpgradesByPrice() {
-  return [...manualUpgrades]
-    .filter(upgrade => !hideMaxedUpgrades || !upgrade.maxTier || upgrade.tier < upgrade.maxTier)
+  return [...buildingUpgrades, ...clickUpgrades]
+    .filter(upgrade => upgrade.owned === false)
     .sort((a, b) => a.cost - b.cost);
 }
 
@@ -902,7 +857,9 @@ function saveGame() {
     totalAutoClicks,
     biggestSingleGain,
     runStartTime,
-    manualUpgrades: manualUpgrades.map(u => ({ tier: u.tier, cost: u.cost })),
+    // New upgrade system
+    buildingUpgrades: buildingUpgrades.map(u => ({ id: u.id, owned: u.owned })),
+    clickUpgrades: clickUpgrades.map(u => ({ id: u.id, owned: u.owned })),
     buildings: buildings.map(b => ({ tier: b.tier, cost: b.cost, totalProduced: b.totalProduced })),
     isMuted,
     hideMaxedUpgrades,
@@ -941,12 +898,25 @@ function loadGame() {
     totalAutoClicks = save.totalAutoClicks ?? 0;
     biggestSingleGain = save.biggestSingleGain ?? 0;
     runStartTime = save.runStartTime ?? Date.now();
-    if (save.manualUpgrades) {
-      save.manualUpgrades.forEach((saved, i) => {
-        manualUpgrades[i].tier = saved.tier;
-        manualUpgrades[i].cost = saved.cost;
+    
+    // Load new upgrade system
+    if (save.buildingUpgrades) {
+      save.buildingUpgrades.forEach(savedUpgrade => {
+        const upgrade = buildingUpgrades.find(u => u.id === savedUpgrade.id);
+        if (upgrade) {
+          upgrade.owned = savedUpgrade.owned;
+        }
       });
     }
+    if (save.clickUpgrades) {
+      save.clickUpgrades.forEach(savedUpgrade => {
+        const upgrade = clickUpgrades.find(u => u.id === savedUpgrade.id);
+        if (upgrade) {
+          upgrade.owned = savedUpgrade.owned;
+        }
+      });
+    }
+    
     if (save.buildings) {
       save.buildings.forEach((saved, i) => {
         buildings[i].tier = saved.tier;
@@ -1061,9 +1031,13 @@ function updateScore() {
 
 function updateSidebarTabPurchasable() {
   // Main tab (upgrades and buildings combined)
-  const canBuyUpgrade = manualUpgrades.some(u => {
-    if (hideMaxedUpgrades && u.maxTier && u.tier >= u.maxTier) return false;
-    return purples >= u.cost && (!u.maxTier || u.tier < u.maxTier);
+  const availableUpgrades = getAvailableUpgrades();
+  const canBuyUpgrade = availableUpgrades.some(u => {
+    const labBuilding = buildings.find(b => b.id === 'purple_lab');
+    const labCount = labBuilding ? labBuilding.tier : 0;
+    const costReduction = Math.min(0.5, labCount * 0.05);
+    const actualCost = Math.floor(u.cost * (1 - costReduction));
+    return purples >= actualCost;
   });
   const canBuyBuilding = buildings.some(b => purples >= b.cost);
   
@@ -1106,54 +1080,103 @@ function renderMainSidebar() {
   upgradeGrid.innerHTML = '';
   buildingList.innerHTML = '';
   
-  // Render upgrades grid
-  const sortedUpgrades = sortUpgradesByPrice();
-  sortedUpgrades.forEach((upgrade) => {
-    const square = document.createElement('button');
-    square.className = 'upgrade-square';
-    square.disabled = (upgrade.maxTier && upgrade.tier >= upgrade.maxTier) || purples < upgrade.cost;
-    square.innerHTML = upgrade.icon || '⭐';
+  // Add "Upgrades" title above the grid (check if it doesn't already exist)
+  const parent = upgradeGrid.parentNode;
+  let upgradesTitle = parent.querySelector('h3');
+  if (!upgradesTitle) {
+    upgradesTitle = document.createElement('h3');
+    upgradesTitle.textContent = 'Upgrades';
+    upgradesTitle.style.color = '#c77dff';
+    upgradesTitle.style.textAlign = 'center';
+    upgradesTitle.style.marginBottom = '12px';
+    upgradesTitle.style.fontSize = '1.1em';
+    parent.insertBefore(upgradesTitle, upgradeGrid);
+  }
+  
+  // Render new upgrades grid
+  const availableUpgrades = getAvailableUpgrades();
+  
+  if (availableUpgrades.length === 0) {
+    const noUpgrades = document.createElement('div');
+    noUpgrades.textContent = 'No upgrades available. Purchase buildings to unlock upgrades!';
+    noUpgrades.style.color = '#888';
+    noUpgrades.style.textAlign = 'center';
+    noUpgrades.style.padding = '20px';
+    noUpgrades.style.fontSize = '0.9em';
+    upgradeGrid.appendChild(noUpgrades);
+  } else {
+    // Limit visible upgrades to first row (up to 4 for proper display)
+    const visibleUpgrades = availableUpgrades.slice(0, 4);
     
-    // Add tooltip events
-    square.addEventListener('mouseenter', (e) => {
-      const tooltip = generateUpgradeTooltip(upgrade);
-      createTooltip(tooltip, e.clientX, e.clientY);
-    });
+    // Add event listeners to the upgrade grid for hover effects
+    let additionalRowsVisible = false;
     
-    square.addEventListener('mouseleave', () => {
-      removeTooltip();
-    });
-    
-    square.addEventListener('mousemove', (e) => {
-      if (currentTooltip) {
-        currentTooltip.style.left = (e.clientX + 15) + 'px';
-        currentTooltip.style.top = (e.clientY - 10) + 'px';
-      }
-    });
-    
-    square.onclick = () => {
-      if (purples >= upgrade.cost && (!upgrade.maxTier || upgrade.tier < upgrade.maxTier)) {
-        purples -= upgrade.cost;
-        upgrade.tier++;
-        upgrade.effect();
-        upgrade.cost = Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, upgrade.tier));
-        
-        createUpgradeParticles(square);
-        if (!isMuted && meowAudio) {
-          meowAudio.currentTime = 0;
-          meowAudio.play();
-        }
-        
-        updateScore();
-        renderSidebar();
-        saveGame();
+    const showAdditionalRows = () => {
+      if (availableUpgrades.length > 4 && !additionalRowsVisible) {
+        showAdditionalUpgradeRows(availableUpgrades.slice(4));
+        additionalRowsVisible = true;
       }
     };
     
-    upgradeGrid.appendChild(square);
-  });
+    const hideAdditionalRows = () => {
+      if (additionalRowsVisible) {
+        hideAdditionalUpgradeRows();
+        additionalRowsVisible = false;
+      }
+    };
+    
+    // Add hover events to the upgrade grid itself
+    upgradeGrid.addEventListener('mouseenter', showAdditionalRows);
+    
+    // Add mouseleave to the upgrade grid's parent to handle hovering over additional rows
+    upgradeGrid.parentNode.addEventListener('mouseleave', hideAdditionalRows);
+    
+    visibleUpgrades.forEach((upgrade, index) => {
+      const square = document.createElement('button');
+      square.className = 'upgrade-square';
+      
+      // Apply lab cost reduction
+      const labBuilding = buildings.find(b => b.id === 'purple_lab');
+      const labCount = labBuilding ? labBuilding.tier : 0;
+      const costReduction = Math.min(0.5, labCount * 0.05);
+      const actualCost = Math.floor(upgrade.cost * (1 - costReduction));
+      
+      square.disabled = purples < actualCost;
+      square.innerHTML = upgrade.icon || '⭐';
+      square.setAttribute('data-upgrade', upgrade.id);
+      
+      // Add tooltip events
+      square.addEventListener('mouseenter', (e) => {
+        const tooltip = generateNewUpgradeTooltip(upgrade);
+        createTooltip(tooltip, e.clientX, e.clientY);
+      });
+      
+      square.addEventListener('mouseleave', () => {
+        removeTooltip();
+      });
+      
+      square.addEventListener('mousemove', (e) => {
+        if (currentTooltip) {
+          currentTooltip.style.left = (e.clientX + 15) + 'px';
+          currentTooltip.style.top = (e.clientY - 10) + 'px';
+        }
+      });
+      
+      square.onclick = () => {
+        if (purchaseUpgrade(upgrade.id)) {
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          saveGame();
+        }
+      };
+      
+      upgradeGrid.appendChild(square);
+    });
+  }
   
-  // Render buildings list
+  // Render buildings list (unchanged)
   const visibleBuildings = getBuildingVisibility();
   visibleBuildings.forEach(({ building, obscured }) => {
     const item = document.createElement('button');
@@ -1219,6 +1242,84 @@ function renderMainSidebar() {
     
     buildingList.appendChild(item);
   });
+}
+
+function showAdditionalUpgradeRows(additionalUpgrades) {
+  // Remove existing additional rows
+  hideAdditionalUpgradeRows();
+  
+  if (additionalUpgrades.length === 0) return;
+  
+  // Create additional rows container
+  const additionalContainer = document.createElement('div');
+  additionalContainer.className = 'additional-upgrade-rows';
+  additionalContainer.style.marginTop = '8px';
+  
+  // Group upgrades into rows of 4
+  for (let i = 0; i < additionalUpgrades.length; i += 4) {
+    const rowUpgrades = additionalUpgrades.slice(i, i + 4);
+    const row = document.createElement('div');
+    row.className = 'upgrade-grid';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = 'repeat(auto-fit, minmax(50px, 1fr))';
+    row.style.gap = '8px';
+    row.style.padding = '0';
+    
+    rowUpgrades.forEach(upgrade => {
+      const square = document.createElement('button');
+      square.className = 'upgrade-square';
+      
+      // Apply lab cost reduction
+      const labBuilding = buildings.find(b => b.id === 'purple_lab');
+      const labCount = labBuilding ? labBuilding.tier : 0;
+      const costReduction = Math.min(0.5, labCount * 0.05);
+      const actualCost = Math.floor(upgrade.cost * (1 - costReduction));
+      
+      square.disabled = purples < actualCost;
+      square.innerHTML = upgrade.icon || '⭐';
+      square.setAttribute('data-upgrade', upgrade.id);
+      
+      // Add tooltip events
+      square.addEventListener('mouseenter', (e) => {
+        const tooltip = generateNewUpgradeTooltip(upgrade);
+        createTooltip(tooltip, e.clientX, e.clientY);
+      });
+      
+      square.addEventListener('mouseleave', () => {
+        removeTooltip();
+      });
+      
+      square.addEventListener('mousemove', (e) => {
+        if (currentTooltip) {
+          currentTooltip.style.left = (e.clientX + 15) + 'px';
+          currentTooltip.style.top = (e.clientY - 10) + 'px';
+        }
+      });
+      
+      square.onclick = () => {
+        if (purchaseUpgrade(upgrade.id)) {
+          if (!isMuted && meowAudio) {
+            meowAudio.currentTime = 0;
+            meowAudio.play();
+          }
+          saveGame();
+        }
+      };
+      
+      row.appendChild(square);
+    });
+    
+    additionalContainer.appendChild(row);
+  }
+  
+  upgradeGrid.parentNode.insertBefore(additionalContainer, upgradeGrid.nextSibling);
+}
+
+function hideAdditionalUpgradeRows() {
+  const existing = document.querySelector('.additional-upgrade-rows');
+  if (existing) {
+    existing.remove();
+  }
 }
 
 function renderOfflineSidebar() {
@@ -1630,10 +1731,9 @@ resetGameBtn.addEventListener('click', () => {
     prestigePoints = 0;
     totalPrestigePointsEarned = 0;
     prestigeMilestone = 100000;
-    manualUpgrades.forEach(u => {
-      u.tier = 0;
-      u.cost = u.baseCost;
-    });
+    // Reset new upgrade system
+    buildingUpgrades.forEach(u => { u.owned = false; });
+    clickUpgrades.forEach(u => { u.owned = false; });
     buildings.forEach(b => {
       b.tier = 0;
       b.cost = b.baseCost;
@@ -1701,8 +1801,40 @@ function formatTime(ms) {
 function getPPS() {
   let pps = 0;
   buildings.forEach(b => {
-    pps += b.tier * b.pps;
+    pps += getBuildingEffectivePpS(b);
   });
+  
+  // Add global bonuses
+  buildings.forEach(building => {
+    const bonus = applyGlobalBuildingBonuses(building, building.pps * building.tier, 1);
+    pps += bonus;
+  });
+  
+  // Add special upgrade bonuses that generate independent PpS
+  const autoClickerBuilding = buildings.find(b => b.id === 'auto_clicker');
+  const hasUltimateClicker = buildingUpgrades.find(u => u.id === 'auto_clicker_ultimate_clicker' && u.owned);
+  if (hasUltimateClicker && autoClickerBuilding && autoClickerBuilding.tier > 0) {
+    // Auto Clickers produce 1% of total PpS as bonus
+    const baseTotalPpS = buildings.reduce((sum, b) => sum + b.pps * b.tier, 0);
+    pps += baseTotalPpS * autoClickerBuilding.tier * 0.01;
+  }
+  
+  // Add farm dimensional agriculture bonus: produce 2% of total building PpS as bonus
+  const farmBuilding = buildings.find(b => b.id === 'purple_farm');
+  const hasDimensionalAgriculture = buildingUpgrades.find(u => u.id === 'purple_farm_dimensional_agriculture' && u.owned);
+  if (hasDimensionalAgriculture && farmBuilding && farmBuilding.tier > 0) {
+    const baseTotalPpS = buildings.reduce((sum, b) => sum + b.pps * b.tier, 0);
+    pps += baseTotalPpS * farmBuilding.tier * 0.02;
+  }
+  
+  // Add similar bonuses for other special upgrades...
+  const factoryBuilding = buildings.find(b => b.id === 'purple_factory');
+  const hasPortalManufacturing = buildingUpgrades.find(u => u.id === 'purple_factory_portal_manufacturing' && u.owned);
+  if (hasPortalManufacturing && factoryBuilding && factoryBuilding.tier > 0) {
+    const baseTotalPpS = buildings.reduce((sum, b) => sum + b.pps * b.tier, 0);
+    pps += baseTotalPpS * factoryBuilding.tier * 0.015;
+  }
+  
   pps += synergyBonus;
   return pps;
 }
@@ -1712,7 +1844,9 @@ function renderStats() {
   const runDuration = now - runStartTime;
   const pps = getPPS();
   const ppc = clickValue;
-  const upgradesOwned = manualUpgrades.map(u => `${u.name}: Tier ${u.tier}`).join('<br>');
+  const upgradesOwned = buildingUpgrades.filter(u => u.owned).map(u => u.name).concat(
+    clickUpgrades.filter(u => u.owned).map(u => u.name)
+  ).join('<br>') || 'None';
   const buildingsOwned = buildings.map(b => `${b.name}: Tier ${b.tier}`).join('<br>');
   const manualVsAuto = totalPurplesEarned === 0 ? 'N/A' : `${Math.round((totalClicks * ppc) / totalPurplesEarned * 100)}% manual / ${Math.round((totalAutoClicks) / totalPurplesEarned * 100)}% auto`;
   const offlineHours = Math.floor(offlineTimeBank / 3600);
@@ -1865,8 +1999,8 @@ function checkAchievements() {
     achievements[5].unlocked = true;
     showAchievementPopup(achievements[5]);
   }
-  // Upgrade Collector (Tier 10 in any upgrade)
-  if (!achievements[6].unlocked && manualUpgrades.some(u => u.tier >= 10)) {
+  // Upgrade Collector (10 upgrades owned)
+  if (!achievements[6].unlocked && (buildingUpgrades.filter(u => u.owned).length + clickUpgrades.filter(u => u.owned).length) >= 10) {
     achievements[6].unlocked = true;
     showAchievementPopup(achievements[6]);
   }
@@ -1934,8 +2068,9 @@ function checkAchievements() {
       window._idlePurples = 0;
     }
   }
-  // Upgrade Maxed (all upgrades maxed)
-  if (!achievements[16].unlocked && manualUpgrades.every(u => u.tier >= u.maxTier)) {
+  // Upgrade Maxed (all tier 10 upgrades owned for at least one building type)
+  const allTier10AutoClicker = buildingUpgrades.filter(u => u.buildingType === 'auto_clicker').every(u => u.owned);
+  if (!achievements[16].unlocked && allTier10AutoClicker) {
     achievements[16].unlocked = true;
     showAchievementPopup(achievements[16]);
   }
@@ -1984,21 +2119,93 @@ let lastClickTime = 0;
 let purpleAvalancheActive = 0;
 
 function getManualClickValue() {
-  let value = 1;
-  value += manualUpgrades[0].tier; // Stronger Clicks
-  if (manualUpgrades[1].tier > 0) value *= 2; // Double Tap
-  value *= 1 + 0.05 * manualUpgrades[2].tier; // Purple Surge
-  value *= 1 + 0.10 * manualUpgrades[4].tier; // Purple Multiplier
-  // Click Combo
-  if (manualUpgrades[8].tier > 0 && clickComboCount > 0) {
-    let comboBonus = Math.min(clickComboCount, 20 * manualUpgrades[8].tier);
-    value *= 1 + 0.01 * comboBonus;
+  let baseValue = clickValue; // Start with base click value
+  let totalBonus = 0;
+  
+  // Apply click upgrades bonuses
+  const ownedClickUpgrades = clickUpgrades.filter(u => u.owned);
+  
+  ownedClickUpgrades.forEach(upgrade => {
+    switch (upgrade.id) {
+      case 'steady_hands':
+        const autoClickerPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'auto_clicker'));
+        totalBonus += autoClickerPpS * 0.10;
+        break;
+      case 'click_focus':
+        const farmPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_farm'));
+        totalBonus += farmPpS * 0.05;
+        break;
+      case 'lucky_strikes':
+        const casinoPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_casino'));
+        totalBonus += casinoPpS * 0.02;
+        break;
+      case 'industrial_strength':
+        const factoryPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_factory'));
+        totalBonus += factoryPpS * 0.01;
+        break;
+      case 'precision_striking':
+        const minePpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_mine'));
+        totalBonus += minePpS * 0.005;
+        break;
+      case 'scientific_clicking':
+        const labPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_lab'));
+        totalBonus += labPpS * 0.002;
+        break;
+      case 'dimensional_touch':
+        const portalPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'purple_portal'));
+        totalBonus += portalPpS * 0.001;
+        break;
+      case 'cosmic_power':
+        const purplerPpS = getBuildingEffectivePpS(buildings.find(b => b.id === 'galactic_purpler'));
+        totalBonus += purplerPpS * 0.0005;
+        break;
+      case 'click_mastery':
+        const totalPpS = getPPS();
+        totalBonus += totalPpS * 0.01;
+        break;
+      case 'ultimate_clicker':
+        const clickUpgradeCount = ownedClickUpgrades.length;
+        const ultimateTotalPpS = getPPS();
+        totalBonus += ultimateTotalPpS * (clickUpgradeCount * 0.001);
+        break;
+    }
+  });
+  
+  // Apply special manual click upgrade bonuses from building upgrades
+  const autoClickerBuilding = buildings.find(b => b.id === 'auto_clicker');
+  const hasMultiClickArray = buildingUpgrades.find(u => u.id === 'auto_clicker_multi_click_array' && u.owned);
+  if (hasMultiClickArray && autoClickerBuilding && autoClickerBuilding.tier > 0) {
+    totalBonus += baseValue * autoClickerBuilding.tier * 0.01;
   }
-  // Click Magnet
-  if (manualUpgrades[10].tier > 0 && Math.random() < 0.01 * manualUpgrades[10].tier) {
-    value *= 2;
+  
+  const casinoBuilding = buildings.find(b => b.id === 'purple_casino');
+  const hasInterdimensionalGambling = buildingUpgrades.find(u => u.id === 'purple_casino_interdimensional_gambling' && u.owned);
+  if (hasInterdimensionalGambling && casinoBuilding && casinoBuilding.tier > 0) {
+    totalBonus += baseValue * casinoBuilding.tier * 0.03;
   }
-  return Math.floor(value);
+  
+  const portalBuilding = buildings.find(b => b.id === 'purple_portal');
+  const hasInfinityGate = buildingUpgrades.find(u => u.id === 'purple_portal_infinity_gate' && u.owned);
+  if (hasInfinityGate && portalBuilding && portalBuilding.tier > 0) {
+    const portalPpS = getBuildingEffectivePpS(portalBuilding);
+    totalBonus += portalPpS * 0.01;
+  }
+  
+  // Apply casino cosmic jackpot: 5% chance to trigger casino bonus
+  const hasCosmicJackpot = buildingUpgrades.find(u => u.id === 'purple_casino_cosmic_jackpot' && u.owned);
+  if (hasCosmicJackpot && casinoBuilding && Math.random() < 0.05) {
+    const casinoPpS = getBuildingEffectivePpS(casinoBuilding);
+    totalBonus += casinoPpS;
+  }
+  
+  // Apply mine core extraction: all buildings gain +0.1% click value per Mine owned
+  const mineBuilding = buildings.find(b => b.id === 'purple_mine');
+  const hasCoreExtraction = buildingUpgrades.find(u => u.id === 'purple_mine_core_extraction' && u.owned);
+  if (hasCoreExtraction && mineBuilding && mineBuilding.tier > 0) {
+    totalBonus += baseValue * (mineBuilding.tier * 0.001);
+  }
+  
+  return Math.floor(baseValue + totalBonus);
 }
 
 let critActive = false;
@@ -2019,8 +2226,9 @@ function showFloatingPlus(x, y, value) {
 const BASE_CLICK_COOLDOWN = 100; // ms
 let lastManualClickTime = 0;
 function getClickCooldown() {
-  const tier = manualUpgrades[7].tier; // Efficient Clicking is the 8th upgrade (index 7)
-  let cooldown = BASE_CLICK_COOLDOWN * (1 - 0.10 * tier);
+  const BASE_CLICK_COOLDOWN = 100; // 100ms default
+  // Since we removed the old upgrade system, return the base cooldown
+  let cooldown = BASE_CLICK_COOLDOWN;
   return Math.max(20, cooldown); // Minimum 20ms
 }
 
@@ -2043,24 +2251,10 @@ clickerImg.addEventListener('click', (e) => {
   manualClickTimestamps = manualClickTimestamps.filter(timestamp => now - timestamp <= 1000);
   manualClicksLastSecond = manualClickTimestamps.length;
   
-  // Click Combo logic
-  if (manualUpgrades[8].tier > 0 && now - lastClickTime < 1000) {
-    clickComboCount++;
-  } else {
-    clickComboCount = 0;
-  }
+  // Basic click logic (old upgrade effects removed)
   lastClickTime = now;
 
   let value = getManualClickValue();
-  // Critical Clicks: 5% chance for 10x if purchased
-  if (manualUpgrades[3].tier > 0 && (critActive || Math.random() < 0.05)) {
-    value *= 10;
-    critActive = false;
-  }
-  // Golden Touch: Every 100th click gives 100x
-  if (manualUpgrades[6].tier > 0 && totalClicks > 0 && totalClicks % 100 === 0) {
-    value *= 100;
-  }
   purples += value;
   totalPurplesEarned += value;
   totalClicks++;
@@ -2068,10 +2262,7 @@ clickerImg.addEventListener('click', (e) => {
   updateScore();
   renderSidebar();
   createFallingPurple();
-  // Purple Avalanche: extra falling purples
-  if (manualUpgrades[12].tier > 0 && purpleAvalancheActive > Date.now()) {
-    for (let i = 0; i < 5; i++) if (i < 1000) createFallingPurple();
-  }
+  // Purple Avalanche removed with old upgrade system
   // Create click particles from button center
   const rect = clickerImg.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
@@ -2089,12 +2280,7 @@ clickerImg.addEventListener('click', (e) => {
   }
   saveGame();
   updateSidebarTabPurchasable();
-  synergyClicks++;
-  const synergyUpgrade = manualUpgrades.find(u => u.id === 'auto_click_synergy');
-  if (synergyUpgrade && synergyUpgrade.tier > 0 && synergyClicks >= 10) {
-    synergyBonus += synergyUpgrade.tier;
-    synergyClicks = 0;
-  }
+  // Synergy logic removed with old upgrade system
 });
 
 // Frame-based purple generation loop
@@ -2964,5 +3150,295 @@ function createPPSParticles() {
   }
 
   requestAnimationFrame(animate);
+}
+
+// New upgrade system functions
+function getAvailableUpgrades() {
+  const availableUpgrades = [];
+  
+  // Get building upgrades for owned buildings
+  buildings.forEach(building => {
+    if (building.tier > 0) { // Only if we own this building type
+      const buildingUpgradesForType = buildingUpgrades.filter(u => u.buildingType === building.id);
+      
+      // Find the current tier for this building type
+      const ownedUpgrades = buildingUpgradesForType.filter(u => u.owned);
+      const currentMaxTier = ownedUpgrades.length > 0 ? Math.max(...ownedUpgrades.map(u => u.tier)) : 0;
+      const nextTier = currentMaxTier + 1;
+      
+      // Add the next tier upgrade if it exists and isn't owned
+      const nextUpgrade = buildingUpgradesForType.find(u => u.tier === nextTier && !u.owned);
+      if (nextUpgrade) {
+        availableUpgrades.push(nextUpgrade);
+      }
+    }
+  });
+  
+  // Get click upgrades
+  const ownedClickUpgrades = clickUpgrades.filter(u => u.owned);
+  const currentMaxClickTier = ownedClickUpgrades.length > 0 ? Math.max(...ownedClickUpgrades.map(u => u.tier)) : 0;
+  const nextClickTier = currentMaxClickTier + 1;
+  const nextClickUpgrade = clickUpgrades.find(u => u.tier === nextClickTier && !u.owned);
+  if (nextClickUpgrade) {
+    availableUpgrades.push(nextClickUpgrade);
+  }
+  
+  // Sort by cost (cheapest first)
+  return availableUpgrades.sort((a, b) => a.cost - b.cost);
+}
+
+function purchaseUpgrade(upgradeId) {
+  let upgrade = buildingUpgrades.find(u => u.id === upgradeId);
+  if (!upgrade) {
+    upgrade = clickUpgrades.find(u => u.id === upgradeId);
+  }
+  
+  if (!upgrade || upgrade.owned) return false;
+  
+  // Apply lab cost reduction
+  const labBuilding = buildings.find(b => b.id === 'purple_lab');
+  const labCount = labBuilding ? labBuilding.tier : 0;
+  const costReduction = Math.min(0.5, labCount * 0.05); // Max 50% reduction, 5% per lab
+  const actualCost = Math.floor(upgrade.cost * (1 - costReduction));
+  
+  if (purples >= actualCost) {
+    purples -= actualCost;
+    upgrade.owned = true;
+    
+    // Apply upgrade effects immediately for some upgrades
+    applyUpgradeEffects();
+    
+    // Update display
+    updateScore();
+    renderMainSidebar();
+    
+    // Create particles effect
+    const upgradeBtn = document.querySelector(`[data-upgrade="${upgradeId}"]`);
+    if (upgradeBtn) {
+      createUpgradeParticles(upgradeBtn);
+    }
+    
+    return true;
+  }
+  
+  return false;
+}
+
+function applyUpgradeEffects() {
+  // This function is called to apply upgrade effects that need recalculation
+  // Most effects are applied in getBuildingEffectivePpS and getManualClickValue
+}
+
+function getBuildingEffectivePpS(building) {
+  if (building.tier === 0) return 0;
+  
+  let basePpS = building.pps * building.tier;
+  let multiplier = 1;
+  let additionalPpS = 0;
+  
+  // Apply building-specific upgrades
+  const buildingUpgradesForType = buildingUpgrades.filter(u => u.buildingType === building.id && u.owned);
+  
+  buildingUpgradesForType.forEach(upgrade => {
+    switch (upgrade.id) {
+      // Auto Clicker upgrades
+      case 'auto_clicker_faster_clicks':
+      case 'auto_clicker_click_precision':
+      case 'auto_clicker_quantum_clicking':
+      case 'auto_clicker_multi_click_array':
+        multiplier *= 2;
+        break;
+      case 'auto_clicker_ultimate_clicker':
+        multiplier *= 4;
+        break;
+      case 'auto_clicker_exponential_clicking':
+        const autoClickerUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + autoClickerUpgradeCount * 0.5);
+        break;
+      
+      // Purple Farm upgrades
+      case 'purple_farm_fertile_soil':
+      case 'purple_farm_advanced_irrigation':
+      case 'purple_farm_genetic_engineering':
+      case 'purple_farm_bio_enhancement':
+        multiplier *= 2;
+        break;
+      case 'purple_farm_infinite_harvest':
+        multiplier *= 4;
+        break;
+      case 'purple_farm_cosmic_farming':
+        const farmUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + farmUpgradeCount * 1.0);
+        break;
+      
+      // Purple Casino upgrades
+      case 'purple_casino_lucky_machines':
+      case 'purple_casino_vip_tables':
+      case 'purple_casino_rigged_games':
+      case 'purple_casino_purple_lottery':
+        multiplier *= 2;
+        break;
+      case 'purple_casino_cosmic_jackpot':
+        multiplier *= 3;
+        break;
+      case 'purple_casino_probability_manipulation':
+        const casinoUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + casinoUpgradeCount * 0.75);
+        break;
+      
+      // Purple Factory upgrades
+      case 'purple_factory_assembly_lines':
+      case 'purple_factory_automation':
+      case 'purple_factory_mass_production':
+      case 'purple_factory_research_division':
+        multiplier *= 2;
+        break;
+      case 'purple_factory_universal_production':
+        multiplier *= 3;
+        break;
+      case 'purple_factory_industrial_empire':
+        const factoryUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + factoryUpgradeCount * 0.6);
+        break;
+      
+      // Purple Mine upgrades
+      case 'purple_mine_deeper_shafts':
+      case 'purple_mine_industrial_equipment':
+      case 'purple_mine_quantum_drilling':
+      case 'purple_mine_research_collaboration':
+        multiplier *= 2;
+        break;
+      case 'purple_mine_core_extraction':
+        multiplier *= 3;
+        break;
+      case 'purple_mine_geological_mastery':
+        const mineUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + mineUpgradeCount * 0.5);
+        break;
+      
+      // Purple Lab upgrades
+      case 'purple_lab_advanced_research':
+      case 'purple_lab_prototype_development':
+      case 'purple_lab_scientific_breakthrough':
+      case 'purple_lab_quantum_experiments':
+        multiplier *= 2;
+        break;
+      case 'purple_lab_universal_knowledge':
+        multiplier *= 3;
+        break;
+      case 'purple_lab_scientific_revolution':
+        const labUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + labUpgradeCount * 0.4);
+        break;
+      
+      // Purple Portal upgrades
+      case 'purple_portal_dimensional_stability':
+      case 'purple_portal_portal_expansion':
+      case 'purple_portal_multiverse_access':
+      case 'purple_portal_reality_manipulation':
+        multiplier *= 2;
+        break;
+      case 'purple_portal_infinity_gate':
+        multiplier *= 3;
+        break;
+      case 'purple_portal_dimensional_mastery':
+        const portalUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + portalUpgradeCount * 0.3);
+        break;
+      
+      // Galactic Purpler upgrades
+      case 'galactic_purpler_rocket_boost':
+      case 'galactic_purpler_stellar_navigation':
+      case 'galactic_purpler_cosmic_enhancement':
+      case 'galactic_purpler_galactic_empire':
+        multiplier *= 2;
+        break;
+      case 'galactic_purpler_omnipotence':
+        multiplier *= 4;
+        break;
+      case 'galactic_purpler_cosmic_transcendence':
+        const purplerUpgradeCount = buildingUpgradesForType.length;
+        multiplier *= (1 + purplerUpgradeCount * 0.25);
+        break;
+    }
+  });
+  
+  // Apply synergy bonuses
+  buildingUpgradesForType.forEach(upgrade => {
+    switch (upgrade.id) {
+      case 'auto_clicker_farm_synergy':
+        const farmCount = buildings.find(b => b.id === 'purple_farm')?.tier || 0;
+        additionalPpS += basePpS * multiplier * (farmCount * 0.01);
+        break;
+      case 'auto_clicker_casino_connection':
+        const casinoCount = buildings.find(b => b.id === 'purple_casino')?.tier || 0;
+        additionalPpS += basePpS * multiplier * (casinoCount * 0.005);
+        break;
+      case 'auto_clicker_factory_network':
+        const factoryCount = buildings.find(b => b.id === 'purple_factory')?.tier || 0;
+        additionalPpS += basePpS * multiplier * (factoryCount * 0.002);
+        break;
+      case 'auto_clicker_global_automation':
+        const totalBuildingCount = buildings.reduce((sum, b) => sum + b.tier, 0);
+        additionalPpS += basePpS * multiplier * (totalBuildingCount * 0.001);
+        break;
+      
+      // Add similar synergy calculations for other building types...
+      // (Following the same pattern for farms, casinos, factories, etc.)
+    }
+  });
+  
+  // Apply cross-building bonuses
+  applyGlobalBuildingBonuses(building, basePpS, multiplier);
+  
+  return (basePpS * multiplier) + additionalPpS;
+}
+
+function applyGlobalBuildingBonuses(building, basePpS, multiplier) {
+  // Apply bonuses from other building types
+  let bonus = 0;
+  
+  // Lab quantum experiments: Labs boost all other buildings' PpS by 0.5% per Lab owned
+  const labBuilding = buildings.find(b => b.id === 'purple_lab');
+  const hasQuantumExperiments = buildingUpgrades.find(u => u.id === 'purple_lab_quantum_experiments' && u.owned);
+  if (hasQuantumExperiments && labBuilding && building.id !== 'purple_lab') {
+    bonus += basePpS * multiplier * (labBuilding.tier * 0.005);
+  }
+  
+  // Portal reality manipulation: Portals boost all buildings' PpS by 0.2% per Portal owned
+  const portalBuilding = buildings.find(b => b.id === 'purple_portal');
+  const hasRealityManipulation = buildingUpgrades.find(u => u.id === 'purple_portal_reality_manipulation' && u.owned);
+  if (hasRealityManipulation && portalBuilding) {
+    bonus += basePpS * multiplier * (portalBuilding.tier * 0.002);
+  }
+  
+  // Galactic Purpler galactic empire: Purpler boost all buildings' PpS by 0.1% per Purpler owned
+  const purplerBuilding = buildings.find(b => b.id === 'galactic_purpler');
+  const hasGalacticEmpire = buildingUpgrades.find(u => u.id === 'galactic_purpler_galactic_empire' && u.owned);
+  if (hasGalacticEmpire && purplerBuilding) {
+    bonus += basePpS * multiplier * (purplerBuilding.tier * 0.001);
+  }
+  
+  return bonus;
+}
+
+function generateNewUpgradeTooltip(upgrade) {
+  const isClickUpgrade = clickUpgrades.includes(upgrade);
+  const buildingName = isClickUpgrade ? 'Manual Clicks' : 
+    buildings.find(b => b.id === upgrade.buildingType)?.name || 'Unknown';
+  
+  // Apply lab cost reduction
+  const labBuilding = buildings.find(b => b.id === 'purple_lab');
+  const labCount = labBuilding ? labBuilding.tier : 0;
+  const costReduction = Math.min(0.5, labCount * 0.05);
+  const actualCost = Math.floor(upgrade.cost * (1 - costReduction));
+  const discountText = costReduction > 0 ? ` (${Math.round(costReduction * 100)}% off!)` : '';
+  
+  return `
+    <div class="tooltip-title">${upgrade.icon} ${upgrade.name}</div>
+    <div class="tooltip-description">${upgrade.description}</div>
+    <div class="tooltip-cost">Cost: ${formatNumber(actualCost)} Purples${discountText}</div>
+    <div class="tooltip-stats">Building: ${buildingName} | Tier ${upgrade.tier}</div>
+  `;
 }
 
